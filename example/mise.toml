@@ -1,0 +1,38 @@
+# misecheck's worked example: a mise file, the Go its tasks run, and Go that runs its tasks back by name. README.md
+# here says what each part shows. Run these here, in example/:
+#   mise run greet:hello --name you --shout   the binary's hello command (greet:build builds it first)
+#   mise run greet:test                       Go that runs these tasks back by name: the loop, end to end
+#   mise run greet:check-mise                 misecheck on this very file, the strict way
+
+[env]
+# greet:build puts the binary here, and the tasks run it by name, as a repo runs its own tool.
+_.path = ["{{config_root}}/bin"]
+
+[tasks."greet:build"]
+description = "Build greet into bin/: Go from its source, go build ./cmd/greet"
+run = 'go build -o bin/ ./cmd/greet'
+
+[tasks."greet:hello"]
+description = "greet's hello command, cmd/greet/hello.go: its two flags are declared here and in its Go"
+depends = ["greet:build"]
+usage = 'flag "--name <name>" help="who to greet"; flag "--shout" help="in capitals"'
+run = 'greet hello{% if usage.name %} --name "{{usage.name}}"{% endif %}{% if usage.shout %} --shout{% endif %}'
+
+[tasks."greet:bye"]
+description = "greet's bye command, cmd/greet/bye.go: it takes nothing, so no usage"
+depends = ["greet:build"]
+run = 'greet bye'
+
+[tasks."greet:test"]
+description = "Go that runs this file's tasks back by name (greet_test.go runs mise run greet:hello): the loop, end to end"
+env = { GREET_E2E = "1" }
+run = 'go test . -run "^TestGreet$" -count=1 -v'
+
+[tasks."greet:check-mise"]
+description = "misecheck on this very file, the strict way: each task's Go there, each command of greet run by a task, each flag on both sides, and each task name greet_test.go uses a task here"
+env = { MISE_FILE = "mise.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "." }
+run = 'go test . -run "^TestMise$" -count=1 -v'
+
+[tasks."greet:readme"]
+description = "A task may run anything else too: it's allowed, and logged as not checked"
+run = 'echo Read README.md'

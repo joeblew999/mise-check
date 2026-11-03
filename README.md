@@ -6,6 +6,35 @@
 A Go module that keeps a [mise](https://mise.jdx.dev) file and the Go its tasks run in sync, both ways, and every task
 runs the same on macOS, Linux and Windows. It forces one structure, and checks the shape, never what the Go does.
 
+## Why
+
+In a repo run by [mise](https://mise.jdx.dev), the mise file is the interface: people, CI and AI agents all do
+things with `mise run <task>`. Behind each task is Go (or a tool). And Go calls back: an end-to-end test runs
+`mise run <task>`, a tool prints "now run `mise run <task>`". So names, commands and flags cross between the mise
+file and the Go in both directions, often several levels deep:
+
+```
+mise.toml task ──runs──▶ Go (a command, or a test) ──runs by name──▶ mise.toml task ──runs──▶ Go …
+```
+
+Nothing in mise or in Go checks those crossings, so they drift apart without a sound:
+
+- a task is renamed, and a test or a printed hint still names the old one;
+- a Go command is removed or renamed, and its task still runs it; or one is added, and no task runs it;
+- a flag is added in Go and never declared in the task's `usage` (mise then refuses it), or the other way round;
+- a run line picks up `$VAR`, `${…}` or `NAME=value cmd`: fine on a Mac, broken in Windows' cmd;
+- a task grows into a shell script inside the TOML, where Go's compiler, vet and tests never see it.
+
+Each is a one-line slip, easy for a person and easier still for an AI agent that edits one side without the other,
+and none fails until someone runs that task, on that OS. misecheck turns the crossing into a contract and fails the
+build when it breaks: one structure, checked both ways, the same on every OS.
+
+## The example
+
+[example/](example/) is a small repo that uses all of it: a mise file, a binary whose commands are a file each, and
+a Go test that runs the tasks back by name. It passes the strict check, and misecheck's own tests break a copy of it
+nine ways, one at a time, to prove each is caught. Start there.
+
 ## Use it
 
 ```sh
@@ -48,7 +77,8 @@ The full rules are the [package documentation](https://pkg.go.dev/github.com/joe
 
 ## This repo
 
-It checks itself as any repo does: `mise run root:check-mise`. `mise run lib:test` runs its own tests.
+It checks itself as any repo does: `mise run root:check-mise`. `mise run lib:test` runs its own tests, the example's
+breakages among them, and `mise run example:check` runs the example: its strict check and its end-to-end test.
 
 ## License
 

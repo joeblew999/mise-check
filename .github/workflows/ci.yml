@@ -56,7 +56,9 @@ jobs:
           mise --version
           mise install
 
-      - name: Its own tests, and itself on its own mise file (mise run lib:test, root:check-mise)
+      - name: Its own tests, itself on its own mise file, and the example (mise run lib:test, root:check-mise, example:check)
         run: |
+          mise trust example
           mise run lib:test
           mise run root:check-mise
+          mise run example:check

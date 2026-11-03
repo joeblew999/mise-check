@@ -1,9 +1,12 @@
 package misecheck
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -89,3 +92,143 @@ func TestRunForms(t *testing.T) {
 		}
 	}
 }
+
+// ---- The example, checked: it passes, and each way of breaking it is caught ----
+
+// example is the strict Check of example/: the mise file, greet's commands one file each, and the Go that runs its
+// tasks back by name.
+func example(dir string) Config {
+	return Config{
+		MiseFile:  filepath.Join(dir, "mise.toml"),
+		GoCmd:     filepath.Join(dir, "cmd"),
+		GoLayout:  "file",
+		GoCallers: dir,
+	}
+}
+
+// TestExample: example/ passes, the strict way.
+func TestExample(t *testing.T) {
+	if errs := checked(example("example")); len(errs) > 0 {
+		t.Errorf("example/ fails misecheck:\n%s", strings.Join(errs, "\n"))
+	}
+}
+
+// TestBroken: a copy of example/, broken one way at a time, each the way a mise file and its Go drift apart; misecheck
+// says so, each time.
+func TestBroken(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		breakIt func(dir string)
+		want    string
+	}{
+		{"a task renamed, and Go still runs it by its old name",
+			edit("mise.toml", `[tasks."greet:bye"]`, `[tasks."greet:farewell"]`),
+			"names the task greet:bye, which isn't a task"},
+		{"a command's Go deleted, and its task still runs it",
+			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "greet", "bye.go")) },
+			"and there's none there"},
+		{"a flag added in Go, not in its task's usage",
+			edit(filepath.Join("cmd", "greet", "hello.go"), `shout := fs.Bool(`, `fs.Bool("loud", false, "")
+	shout := fs.Bool(`),
+			"defines the flag --loud"},
+		{"a flag added to a task's usage, not in its Go",
+			edit("mise.toml", `flag "--shout" help="in capitals"'`, `flag "--shout" help="in capitals"; flag "--color" help="c"'`),
+			"declares the flag --color"},
+		{"a flag declared, and its run doesn't pass it",
+			edit("mise.toml", `{% if usage.shout %} --shout{% endif %}`, ``),
+			"declares the flag --shout, and its run doesn't pass it"},
+		{"POSIX shell syntax, which Windows' cmd doesn't read",
+			edit("mise.toml", `run = 'greet bye'`, `run = 'GREETING=1 greet bye'`),
+			"has POSIX shell syntax"},
+		{"a run over several lines: logic that belongs in Go",
+			edit("mise.toml", `run = 'greet bye'`, "run = \"\"\"\ngreet bye\n\"\"\""),
+			"isn't one line"},
+		{"a command added to the binary, and no task runs it",
+			func(dir string) {
+				os.WriteFile(filepath.Join(dir, "cmd", "greet", "wave.go"), []byte("package main\n\nfunc wave(args []string) {}\n"), 0o644)
+			},
+			"is a command of greet"},
+		{"a task name glued together from pieces in Go",
+			edit("greet_test.go", `"strings"`, "\"strings\"\n)\n\nvar step = \"greet:\" + \"bye\"\n\nvar (_ = step"),
+			"builds a task name from pieces"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			copyTree(t, "example", dir)
+			if errs := checked(example(dir)); len(errs) > 0 {
+				t.Fatalf("the copy fails before it's broken:\n%s", strings.Join(errs, "\n"))
+			}
+			c.breakIt(dir)
+			errs := checked(example(dir))
+			if !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, c.want) }) {
+				t.Errorf("not caught: want an error with %q, got:\n%s", c.want, strings.Join(errs, "\n"))
+			}
+		})
+	}
+}
+
+// edit is a break: the one place old is in file (from the copy's root), made new.
+func edit(file, old, new string) func(dir string) {
+	return func(dir string) {
+		p := filepath.Join(dir, file)
+		b, _ := os.ReadFile(p)
+		if strings.Count(string(b), old) != 1 {
+			panic(fmt.Sprintf("%s: %q isn't there exactly once", file, old))
+		}
+		os.WriteFile(p, []byte(strings.Replace(string(b), old, new, 1)), 0o644)
+	}
+}
+
+// copyTree copies the example's files into dir, leaving out what greet:build writes.
+func copyTree(t *testing.T, from, to string) {
+	t.Helper()
+	err := filepath.WalkDir(from, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(from, p)
+		if d.IsDir() {
+			if rel == "bin" {
+				return filepath.SkipDir
+			}
+			return os.MkdirAll(filepath.Join(to, rel), 0o755)
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(to, rel), b, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// checked runs Check against c and returns what it reports as errors, rather than failing the test that calls it.
+func checked(c Config) []string {
+	r := &recorder{}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		Check(r, c)
+	}()
+	<-done
+	return r.errors
+}
+
+// recorder is a testing.TB that keeps what Check reports. Fatal and Skip end Check's goroutine, as they end a test.
+type recorder struct {
+	testing.TB
+	errors []string
+}
+
+func (r *recorder) Helper()             {}
+func (r *recorder) Log(...any)          {}
+func (r *recorder) Logf(string, ...any) {}
+func (r *recorder) Error(args ...any)   { r.errors = append(r.errors, fmt.Sprint(args...)) }
+func (r *recorder) Errorf(format string, args ...any) {
+	r.errors = append(r.errors, fmt.Sprintf(format, args...))
+}
+func (r *recorder) Fatal(args ...any)                 { r.Error(args...); runtime.Goexit() }
+func (r *recorder) Fatalf(format string, args ...any) { r.Errorf(format, args...); runtime.Goexit() }
+func (r *recorder) Skip(...any)                       { runtime.Goexit() }

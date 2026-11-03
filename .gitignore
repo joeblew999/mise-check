@@ -1,0 +1,4 @@
+# Go test caches and editor files
+*.test
+*.out
+.DS_Store

@@ -1,0 +1,62 @@
+# mise-check's CI: its own tests, and itself on its own mise file, on Linux, macOS and Windows side by side (the
+# point of it is that tasks run the same everywhere). Shell steps only, as mise-cloudflare's: no JavaScript actions.
+name: ci
+
+on:
+  push:
+    tags: ["**"]
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash # these steps are the workflow's own; mise runs the tasks in each OS's own shell
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # mise's GitHub downloads
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # gh, which fetches mise itself on Windows
+      MISE_YES: "1"
+    steps:
+      - name: Check out with git (no actions/checkout)
+        run: |
+          git init -q .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" "$GITHUB_SHA"
+          git checkout -q --detach FETCH_HEAD
+          git log --oneline -1
+
+      - name: mise and the pinned tools (mise.run, or mise's own Windows build)
+        run: |
+          native() { if [ "$RUNNER_OS" = Windows ]; then cygpath -w "$1"; else echo "$1"; fi; }
+          mkdir -p "$HOME/.local/bin"
+          native "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "MISE_TRUSTED_CONFIG_PATHS=$(native "$PWD")" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = Windows ]; then
+            tag=$(gh release view -R jdx/mise --json tagName -q .tagName)
+            curl -fsSL -o "$HOME/.local/bin/mise.exe" "https://github.com/jdx/mise/releases/download/$tag/mise-$tag-windows-x64.exe"
+          else
+            curl -fsSL https://mise.run | MISE_QUIET=1 sh
+          fi
+          export PATH="$HOME/.local/bin:$PATH" MISE_TRUSTED_CONFIG_PATHS="$(native "$PWD")"
+          mise --version
+          mise install
+
+      - name: Its own tests, and itself on its own mise file (mise run lib:test, root:check-mise)
+        run: |
+          mise run lib:test
+          mise run root:check-mise

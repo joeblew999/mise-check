@@ -53,6 +53,7 @@ flag "--yes"
 '''
 run = 'y'
 `, []task{{"a:b", "x", ""}, {"setup", "y", ""}}, 1},
+		{"crlf.toml", "[\"a:b\"]\r\nrun = \"x\"\r\n\r\n[setup]\r\nrun = 'y'\r\n", []task{{"a:b", "x", ""}, {"setup", "y", ""}}, 0},
 	} {
 		file := filepath.Join(dir, c.name)
 		os.WriteFile(file, []byte(c.text), 0o644)

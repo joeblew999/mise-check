@@ -404,7 +404,8 @@ func readTasks(file string) (tasks []task, unreadable []string, err error) {
 		header = configTaskHeader
 	}
 	in := false // in a task's table, not another's
-	for _, line := range strings.Split(string(b), "\n") {
+	// Line by line, \r\n as well as \n: git on Windows checks a repo out with \r\n unless its .gitattributes says not to.
+	for _, line := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
 		if strings.HasPrefix(line, "[") {
 			m := header.FindStringSubmatch(line)
 			if in = m != nil; in {

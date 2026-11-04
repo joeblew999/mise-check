@@ -64,6 +64,8 @@
 //	GO_CMD      the folder of the built binaries, <GO_CMD>/<binary>/   } for built binaries: both, or neither
 //	GO_LAYOUT   file or folder: how a binary's commands are laid out    }
 //	GO_CALLERS  the folder of Go that runs the tasks by name (optional)
+//	GO_BINARIES which binaries of GO_CMD to hold to the strict way, comma-separated (optional; empty, all of them):
+//	            for a repo taking it up one binary at a time
 //
 // On the Go side it reads only Go: .go files and Go's flag package. It never passes on nothing, and it logs what it
 // checked.
@@ -86,11 +88,20 @@ type Config struct {
 	GoCmd     string // GO_CMD: the folder of the built binaries, <GoCmd>/<binary>/   } for built binaries:
 	GoLayout  string // GO_LAYOUT: how a binary's commands are laid out, file or folder } both, or neither
 	GoCallers string // GO_CALLERS: the folder of Go that runs the tasks by name (optional)
+	// GO_BINARIES: which binaries of GoCmd to hold to the strict way, comma-separated (optional; empty, all of them).
+	// For a repo taking it up one binary at a time: the others are left alone, as anything else a task runs is.
+	GoBinaries string
 }
 
-// FromEnv is the Config the environment says: MISE_FILE, GO_CMD, GO_LAYOUT and GO_CALLERS.
+// FromEnv is the Config the environment says: MISE_FILE, GO_CMD, GO_LAYOUT, GO_CALLERS and GO_BINARIES.
 func FromEnv() Config {
-	return Config{os.Getenv("MISE_FILE"), os.Getenv("GO_CMD"), os.Getenv("GO_LAYOUT"), os.Getenv("GO_CALLERS")}
+	return Config{
+		MiseFile:   os.Getenv("MISE_FILE"),
+		GoCmd:      os.Getenv("GO_CMD"),
+		GoLayout:   os.Getenv("GO_LAYOUT"),
+		GoCallers:  os.Getenv("GO_CALLERS"),
+		GoBinaries: os.Getenv("GO_BINARIES"),
+	}
 }
 
 // Check checks the mise file c names against its Go, both ways, by the rules of the package documentation. A repo
@@ -103,6 +114,9 @@ func Check(t testing.TB, c Config) {
 	}
 	if (cmd == "") != (layout == "") {
 		t.Fatalf("GO_CMD=%q GO_LAYOUT=%q: give both, for tasks that run a built binary, or neither", cmd, layout)
+	}
+	if c.GoBinaries != "" && cmd == "" {
+		t.Fatalf("GO_BINARIES=%q: it picks binaries of GO_CMD, and there's no GO_CMD", c.GoBinaries)
 	}
 	if layout != "" && layout != "file" && layout != "folder" {
 		t.Fatalf("GO_LAYOUT=%q: it's file (a command is <GO_CMD>/<binary>/<command>.go) or folder (<GO_CMD>/<binary>/<command>/)", layout)
@@ -121,6 +135,18 @@ func Check(t testing.TB, c Config) {
 	if cmd != "" {
 		if g.binaries = binariesIn(cmd); len(g.binaries) == 0 {
 			t.Errorf("GO_CMD=%s holds no binary (a folder %s/<binary>/): did the Go move?", cmd, cmd)
+		}
+		if c.GoBinaries != "" {
+			var picked []string
+			for _, b := range strings.Split(c.GoBinaries, ",") {
+				if b = strings.TrimSpace(b); !slices.Contains(g.binaries, b) {
+					t.Errorf("GO_BINARIES names %s, which isn't a binary of GO_CMD=%s (%s/%s/)", b, cmd, cmd, b)
+				} else {
+					picked = append(picked, b)
+				}
+			}
+			t.Logf("GO_BINARIES: %d of the %d binaries of %s held to the strict way: %s", len(picked), len(g.binaries), cmd, strings.Join(picked, ", "))
+			g.binaries = picked
 		}
 	}
 	checkMiseToGo(t, file, tasks, g)

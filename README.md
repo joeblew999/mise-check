@@ -66,6 +66,7 @@ run = 'go test . -run "^TestMise$" -count=1 -v'
 | `MISE_FILE` | The mise file: a `mise.toml`, or a file of tasks only (`.mise/tasks/*.toml`). Without it, the check skips |
 | `GO_CMD`, `GO_LAYOUT` | For tasks that run built binaries: their folder (`<GO_CMD>/<binary>/`), and how each binary's commands are laid out, `file` (a file each) or `folder` (a folder each). Both, or neither |
 | `GO_CALLERS` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
+| `GO_BINARIES` | Which binaries of `GO_CMD` to hold to the strict way, comma-separated (optional; empty, all of them): for a repo taking it up one binary at a time |
 
 ## What it checks
 

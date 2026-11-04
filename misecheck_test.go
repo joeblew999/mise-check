@@ -232,3 +232,27 @@ func (r *recorder) Errorf(format string, args ...any) {
 func (r *recorder) Fatal(args ...any)                 { r.Error(args...); runtime.Goexit() }
 func (r *recorder) Fatalf(format string, args ...any) { r.Errorf(format, args...); runtime.Goexit() }
 func (r *recorder) Skip(...any)                       { runtime.Goexit() }
+
+// TestBinaries: GO_BINARIES holds only the binaries it names to the strict way, so a repo can take it up one binary at
+// a time; without it every binary of GO_CMD is held to it, and a name that isn't a binary is an error.
+func TestBinaries(t *testing.T) {
+	dir := t.TempDir()
+	copyTree(t, "example", dir)
+	os.MkdirAll(filepath.Join(dir, "cmd", "other"), 0o755)
+	os.WriteFile(filepath.Join(dir, "cmd", "other", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644)
+
+	all := example(dir)
+	if errs := checked(all); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "is a command of other") }) {
+		t.Errorf("without GO_BINARIES, a binary no task runs should fail; got:\n%s", strings.Join(errs, "\n"))
+	}
+	greet := example(dir)
+	greet.GoBinaries = "greet"
+	if errs := checked(greet); len(errs) > 0 {
+		t.Errorf("GO_BINARIES=greet should leave other alone; got:\n%s", strings.Join(errs, "\n"))
+	}
+	wrong := example(dir)
+	wrong.GoBinaries = "greet,nope"
+	if errs := checked(wrong); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "GO_BINARIES names nope") }) {
+		t.Errorf("GO_BINARIES naming no binary should fail; got:\n%s", strings.Join(errs, "\n"))
+	}
+}

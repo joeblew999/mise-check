@@ -76,7 +76,9 @@ each by name with mise's templates (`{% if usage.yes %} --yes{% endif %}`); its 
 
 The Go a task runs: from source (`go run|test|build ./path`, any folder, several, `./...`) the folder must hold Go;
 a built binary (`<binary> <command>`) must have that command, every command must be one a task runs, and every flag
-is declared on both sides. Anything else a task runs (`hugo …`, `wrangler …`) is logged as not checked.
+is declared on both sides. Anything else a task runs (`hugo …`, `wrangler …`) is held to the rules every task is, above, and logged as not
+checked: a file of only such tool tasks passes on those rules alone, unless it's given `GO_CMD` (then its tasks must
+run its Go).
 
 Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task.
 

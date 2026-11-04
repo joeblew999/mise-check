@@ -39,8 +39,9 @@
 //   - Anything else (hugo …, wrangler …, go vet …): logged as not checked, never failed.
 //
 // The tasks can be in a mise.toml ([tasks.…]) or in a file of tasks only (.mise/tasks/*.toml, or one a mise.toml
-// includes); GO_CMD and GO_CALLERS are each optional, so a repo checks as much as it has. Only a mise file whose tasks
-// run no Go at all fails outright: there would be nothing to keep in sync.
+// includes); GO_CMD and GO_CALLERS are each optional, so a repo checks as much as it has. A file of tasks that only run
+// tools (hugo …, process-compose …), with no GO_CMD, is held to the rules every task is, below; one given GO_CMD,
+// whose tasks then run no Go at all, fails: the Go its binary's tasks ran has moved.
 //
 // Every task, however it runs Go:
 //
@@ -240,7 +241,8 @@ func (g goSide) binaryAt(place string) string {
 // ---- The checks ----
 
 // checkMiseToGo checks mise to Go: every place of Go a task runs is there, and is Go. A task with nothing in either
-// form is reported, as not checked; a mise file whose tasks run no Go at all fails.
+// form is reported, as not checked. A mise file whose tasks run no Go at all fails if it's given GO_CMD, which says
+// it holds a binary's tasks; without it, it's a file of tool tasks, held to the usage rules alone.
 func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 	t.Helper()
 	places, missing, notGo := 0, 0, 0
@@ -259,7 +261,11 @@ func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 		}
 	}
 	if len(tasks) > 0 && places == 0 {
-		t.Errorf("mise → Go: no task of %s runs Go, in either form: did the Go move, or the tasks?", file)
+		if g.cmd != "" {
+			t.Errorf("mise → Go: no task of %s runs Go, in either form: did the Go move, or the tasks?", file)
+		} else {
+			t.Logf("mise → Go: no task of %s runs Go: a file of tool tasks, held to the usage rules alone", file)
+		}
 	}
 	t.Logf("mise → Go: %d tasks of %s, running %d places of Go: %d with no Go there; %d commands in neither form, not checked", len(tasks), file, places, missing, notGo)
 }

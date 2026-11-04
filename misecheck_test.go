@@ -235,6 +235,30 @@ func (r *recorder) Skip(...any)                       { runtime.Goexit() }
 
 // TestBinaries: GO_BINARIES holds only the binaries it names to the strict way, so a repo can take it up one binary at
 // a time; without it every binary of GO_CMD is held to it, and a name that isn't a binary is an error.
+// TestToolTasks: a file of tasks that only run tools passes the usage rules without GO_CMD, and still fails them (POSIX
+// shell syntax here); given GO_CMD, a file whose tasks run no Go fails, as its binary's Go has moved.
+func TestToolTasks(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "tools.toml")
+	write := func(run string) {
+		os.WriteFile(file, []byte("[\"site:dev\"]\nrun = '"+run+"'\n"), 0o644)
+	}
+	write("hugo server --bind 0.0.0.0")
+	if errs := checked(Config{MiseFile: file}); len(errs) > 0 {
+		t.Errorf("tool tasks without GO_CMD should pass; got:\n%s", strings.Join(errs, "\n"))
+	}
+	write("hugo server --port $PORT")
+	if errs := checked(Config{MiseFile: file}); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "POSIX shell syntax") }) {
+		t.Errorf("a tool task with POSIX shell syntax should fail; got:\n%s", strings.Join(errs, "\n"))
+	}
+	write("hugo server --bind 0.0.0.0")
+	copyTree(t, "example", dir)
+	withCmd := Config{MiseFile: file, GoCmd: filepath.Join(dir, "cmd"), GoLayout: "file"}
+	if errs := checked(withCmd); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "runs Go, in either form") }) {
+		t.Errorf("given GO_CMD, tasks that run no Go should fail; got:\n%s", strings.Join(errs, "\n"))
+	}
+}
+
 func TestBinaries(t *testing.T) {
 	dir := t.TempDir()
 	copyTree(t, "example", dir)

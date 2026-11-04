@@ -29,6 +29,12 @@ Each is a one-line slip, easy for a person and easier still for an AI agent that
 and none fails until someone runs that task, on that OS. misecheck turns the crossing into a contract and fails the
 build when it breaks: one structure, checked both ways, the same on every OS.
 
+## Real-world use
+
+[mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is built this way: its tasks run its Go, its Go and its
+end-to-end tests run its tasks back by name, and a task of each of its mise files checks that very file with misecheck
+(`mise run root:check-mise`, `mise run template:check-mise`). Look there to see it in real use.
+
 ## The example
 
 [example/](example/) is a small repo that uses all of it: a mise file, a binary whose commands are a file each, and

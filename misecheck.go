@@ -213,7 +213,7 @@ func (g goSide) runsOf(run, dir string) []ran {
 			}
 		case g.cmd != "" && slices.Contains(g.binaries, words[0]):
 			place := filepath.Join(g.cmd, words[0])
-			if len(words) > 1 && regexp.MustCompile(`^[a-z][a-z-]*$`).MatchString(words[1]) {
+			if len(words) > 1 && regexp.MustCompile(`^[a-z][a-z0-9-]*$`).MatchString(words[1]) { // a command: open, cf-r2, http2
 				if g.layout == "file" {
 					place = filepath.Join(place, strings.ReplaceAll(words[1], "-", "_")+".go")
 				} else {

@@ -75,6 +75,7 @@ func TestRunForms(t *testing.T) {
 	in := func(p ...string) string { return abs(filepath.Join(append([]string{dir}, p...)...)) }
 	for run, want := range map[string][]ran{
 		"tool set-secrets":                                         {{place: in("cmd", "tool", "set_secrets.go"), binary: "tool"}},
+		"tool cf-r2":                                               {{place: in("cmd", "tool", "cf_r2.go"), binary: "tool"}},
 		"tool{% if usage.json %} --json{% endif %}":                {{place: in("cmd", "tool"), binary: "tool"}},
 		`tool deploy{% for a in usage.args %} "{{a}}"{% endfor %}`: {{place: in("cmd", "tool", "deploy.go"), binary: "tool"}},
 		"tool":                            {{place: in("cmd", "tool"), binary: "tool"}},

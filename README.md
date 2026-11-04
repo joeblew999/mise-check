@@ -6,40 +6,50 @@
 A Go module that keeps a [mise](https://mise.jdx.dev) file and the Go its tasks run in sync, both ways, and every task
 runs the same on macOS, Linux and Windows. It forces one structure, and checks the shape, never what the Go does.
 
-## Why
+## Why: end-to-end tests that go through mise
 
-In a repo run by [mise](https://mise.jdx.dev), the mise file is the interface: people, CI and AI agents all do
-things with `mise run <task>`. Behind each task is Go (or a tool). And Go calls back: an end-to-end test runs
-`mise run <task>`, a tool prints "now run `mise run <task>`". So names, commands and flags cross between the mise
-file and the Go in both directions, often several levels deep:
+It exists for repos whose end-to-end tests drive the repo **through its mise file**, the way a person does: not by
+calling the Go directly, but by running its tasks by name. [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare)
+is the real one, and the place to look. Its end-to-end test, `TestWalk`, takes a repo and runs its numbered tasks in
+order with `mise run`, each of which runs the tool's own Go; and the test itself is run by a task:
 
 ```
-mise.toml task ──runs──▶ Go (a command, or a test) ──runs by name──▶ mise.toml task ──runs──▶ Go …
+mise run template:e2e-serve                    mise-cloudflare's own mise.toml
+  └─ go test . -run TestWalk                   e2e_walk_test.go: the walk
+       └─ mise run cloudflare:03-init          the template's tasks, run by name, in order
+          mise run cloudflare:04-check           (templates/.mise/tasks/mise-cloudflare.toml)
+          …
+          mise run cloudflare:08-deploy
+            └─ mise-cloudflare init | check | … | deploy     the tool: cmd/mise-cloudflare/<command>.go
 ```
 
-Nothing in mise or in Go checks those crossings, so they drift apart without a sound:
+So the mise file isn't glue around the product: it *is* the product's interface, the thing the end-to-end test
+tests. Names, commands and flags cross between the mise files and the Go in both directions, several levels deep (a
+task runs Go, which runs a task, which runs Go), and nothing in mise or in Go checks those crossings. They drift apart
+without a sound:
 
-- a task is renamed, and a test or a printed hint still names the old one;
+- a task is renamed, and the end-to-end test, or a hint the tool prints, still names the old one;
 - a Go command is removed or renamed, and its task still runs it; or one is added, and no task runs it;
 - a flag is added in Go and never declared in the task's `usage` (mise then refuses it), or the other way round;
 - a run line picks up `$VAR`, `${…}` or `NAME=value cmd`: fine on a Mac, broken in Windows' cmd;
 - a task grows into a shell script inside the TOML, where Go's compiler, vet and tests never see it.
 
-Each is a one-line slip, easy for a person and easier still for an AI agent that edits one side without the other,
-and none fails until someone runs that task, on that OS. misecheck turns the crossing into a contract and fails the
-build when it breaks: one structure, checked both ways, the same on every OS.
+Each is a one-line slip, easy for a person and easier still for an AI agent that edits one side without the other.
+And the end-to-end walk is the slowest test there is (minutes, on a live Cloudflare account): a slip found there costs
+a walk, and fails for a reason that hides the real one. misecheck checks every one of those links, both ways, in a
+second, before the walk runs: each task the test names is a task; each task's command is in the Go, and each Go
+command is a task's; each flag is declared on both sides; each run line runs on Windows too. In mise-cloudflare a task
+of each mise file runs it on that very file (`mise run root:check-mise`, `mise run template:check-mise`), so the walk
+only ever fails for what it's there to find.
 
-## Real-world use
-
-[mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is built this way: its tasks run its Go, its Go and its
-end-to-end tests run its tasks back by name, and a task of each of its mise files checks that very file with misecheck
-(`mise run root:check-mise`, `mise run template:check-mise`). Look there to see it in real use.
+A repo without such a test gets the same contract: its tasks and its Go stay one structure, checked both ways.
 
 ## The example
 
-[example/](example/) is a small repo that uses all of it: a mise file, a binary whose commands are a file each, and
-a Go test that runs the tasks back by name. It passes the strict check, and misecheck's own tests break a copy of it
-nine ways, one at a time, to prove each is caught. Start there.
+[example/](example/) is the same loop in miniature: a mise file, a binary whose commands are a file each, and a Go
+test that runs the tasks back by name (`greet_test.go` runs `mise run greet:hello`), as mise-cloudflare's walk does.
+It passes the strict check, and misecheck's own tests break a copy of it nine ways, one at a time, to prove each is
+caught. Start there.
 
 ## Use it
 

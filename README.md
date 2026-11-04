@@ -6,25 +6,33 @@
 A Go module that keeps a [mise](https://mise.jdx.dev) file and the Go its tasks run in sync, both ways, and every task
 runs the same on macOS, Linux and Windows. It forces one structure, and checks the shape, never what the Go does.
 
-## Why: end-to-end tests that go through mise
+## Why: a control plane that tests other repos through their own mise files
 
-It exists for repos whose end-to-end tests drive the repo **through its mise file**, the way a person does: not by
-calling the Go directly, but by running its tasks by name. [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare)
-is the real one, and the place to look. Its end-to-end test, `TestWalk`, takes a repo and runs its numbered tasks in
-order with `mise run`, each of which runs the tool's own Go; and the test itself is run by a task:
+A repo's root mise file can be a control plane, and not only for that repo: for the other repos it works on. Its tasks
+run end-to-end tests, and those tests drive each of the other repos **through that repo's own mise file**, the way a
+person working there does, by running its tasks by name. [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare)
+is the real one, and the place to look. Its root mise.toml drives three kinds of repo, each through the repo's own tasks:
+
+- the template it ships (`templates/`): `mise run template:e2e-serve`, `template:e2e-deploy`;
+- a new repo, made from nothing as a person makes one (`mise-cloudflare init` in an empty folder):
+  `mise run new-repo:e2e-serve`, `new-repo:e2e-deploy`;
+- a third-party Worker, adopted as its owner would: `mise run repos:e2e-adopt`.
+
+Each of those tasks runs the same end-to-end test, `TestWalk`, on its repo. It runs that repo's numbered tasks in
+order with `mise run`, and each of those runs the tool's own Go:
 
 ```
-mise run template:e2e-serve                    mise-cloudflare's own mise.toml
+mise run template:e2e-serve                    the control plane: mise-cloudflare's root mise.toml
   └─ go test . -run TestWalk                   e2e_walk_test.go: the walk
-       └─ mise run cloudflare:03-init          the template's tasks, run by name, in order
+       └─ mise run cloudflare:03-init          the repo walked, through its own mise file
           mise run cloudflare:04-check           (templates/.mise/tasks/mise-cloudflare.toml)
           …
           mise run cloudflare:08-deploy
             └─ mise-cloudflare init | check | … | deploy     the tool: cmd/mise-cloudflare/<command>.go
 ```
 
-So the mise file isn't glue around the product: it *is* the product's interface, the thing the end-to-end test
-tests. Names, commands and flags cross between the mise files and the Go in both directions, several levels deep (a
+So a mise file isn't glue around the product: it *is* the product's interface, the thing the end-to-end test
+tests, in the control plane and in every repo it drives. Names, commands and flags cross between the mise files and the Go in both directions, several levels deep (a
 task runs Go, which runs a task, which runs Go), and nothing in mise or in Go checks those crossings. They drift apart
 without a sound:
 

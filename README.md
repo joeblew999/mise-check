@@ -31,10 +31,10 @@ mise run template:e2e-serve                    the control plane: mise-cloudflar
             └─ mise-cloudflare init | check | … | deploy     the tool: cmd/mise-cloudflare/<command>.go
 ```
 
-So a mise file isn't glue around the product: it *is* the product's interface, the thing the end-to-end test
-tests, in the control plane and in every repo it drives. Names, commands and flags cross between the mise files and the Go in both directions, several levels deep (a
-task runs Go, which runs a task, which runs Go), and nothing in mise or in Go checks those crossings. They drift apart
-without a sound:
+So a mise file isn't glue around the product: it *is* the product's interface, the thing the end-to-end test tests,
+in the control plane and in every repo it drives. Names, commands and flags cross between the mise files and the Go
+in both directions, several levels deep (a task runs Go, which runs a task, which runs Go), and nothing in mise or in
+Go checks those crossings. They drift apart without a sound:
 
 - a task is renamed, and the end-to-end test, or a hint the tool prints, still names the old one;
 - a Go command is removed or renamed, and its task still runs it; or one is added, and no task runs it;

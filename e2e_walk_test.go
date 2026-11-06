@@ -57,10 +57,10 @@ var steps = []walk.Step[*walker]{
 			w.T.Fatalf("mise-check:show --json: %+v", s)
 		}
 		w.Pass("mise-check:show says next: %s", s.Next)
-		if out := w.MustTask("start"); !strings.Contains(out, "hello, app") {
-			w.T.Fatalf("the app (mise run start): %s", out)
+		if out := w.MustTask("app:start"); !strings.Contains(out, "hello, app") {
+			w.T.Fatalf("the app (mise run app:start): %s", out)
 		}
-		w.Pass("the app runs (mise run start): hello, app")
+		w.Pass("the app runs (mise run app:start): hello, app")
 	}},
 }
 

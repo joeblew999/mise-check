@@ -13,14 +13,15 @@ skills.fetch = false
 node = "26.13.0"   # runs the packages
 aube = { version = "2.9.0", workflow = ["release-plz.yml@refs/heads/main", "release.yml@refs/heads/main"] }     # installs the packages from package.json
 
+# setup and test are the tasks mise-check:verify runs by name, here and on GitHub: every repo's, first.
 [tasks.setup]
-description = "Install the pinned packages"
+description = "Install the pinned packages (mise-check:verify runs it first)"
 run = "aube install"
-
-[tasks.start]
-description = "Run the app"
-run = "go run ./app"
 
 [tasks.test]
 description = "The app's own tests (mise-check:verify runs them, then check)"
 run = "go test ./..."
+
+[tasks."app:start"]
+description = "Run the app"
+run = "go run ./app"

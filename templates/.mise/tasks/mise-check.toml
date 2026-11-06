@@ -23,6 +23,10 @@ description = "What's done for this repo, and what to run next"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show{% if usage.json %} --json{% endif %}'
 
+["mise-check:verify"]
+description = "What the repo's GitHub workflow runs: each pin consistent with what pins it (the packages with their lockfile, aube install --frozen-lockfile; every go.mod with its code, go mod tidy -diff), its own setup and test tasks if it has them, then check. The same here as on GitHub"
+run = "mise-check verify"
+
 ["mise-check:update"]
 description = "Every pin at its newest release, in one go: update-mise, update-packages and update-go, in that order. It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them (a major move can break)"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
@@ -47,10 +51,6 @@ run = 'mise-check update-go{% if usage.no_major %} --no-major{% endif %}{% if us
 description = "Which of the owner's repos on GitHub use this one: its Go module in their go.mod, its binary in their mise files, at the versions each pins, against the newest release, the behind ones marked. Needs a token for private repos (GITHUB_TOKEN, GH_TOKEN, or gh's login)"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show-users{% if usage.json %} --json{% endif %}'
-
-["mise-check:verify"]
-description = "What the repo's GitHub workflow runs: each pin consistent with what pins it (the packages with their lockfile, aube install --frozen-lockfile; every go.mod with its code, go mod tidy -diff), its own setup and test tasks if it has them, then check. The same here as on GitHub"
-run = "mise-check verify"
 
 ["mise-check:template"]
 description = "The template's little app, in a repo with no Go program yet: app/, the mise.toml that runs and tests it, and README.md named for the repo's folder. It never writes over a file"

@@ -17,26 +17,28 @@ import (
 	"strings"
 )
 
-const help = `This repo's pins and mise tasks, with mise-check. Each command is a task, numbered in the order a repo meets
-them: mise run mise-check:<nn>-<command> runs mise-check <command>.
+const help = `This repo's pins and mise tasks, with mise-check. Each command is a task: mise run mise-check:<command>
+runs mise-check <command>; the steps are numbered in the order a repo meets them.
 
-The steps, in order (mise run mise-check says which is next):
-  mise run mise-check:03-init     mise-check's files written into the repo (again, after upgrading)
-  mise run mise-check:04-check    the repo's rules: mise-check's files current, its pin
-  mise run mise-check:05-show     what's done, and what to run next (mise run mise-check, too)
+The steps (mise run mise-check says which is next):
+  mise run mise-check:03-init            mise-check's files written into the repo (again, after upgrading)
+  mise run mise-check:04-check           the repo's rules: its mise files by misecheck, mise-check's files current, its pin
+  mise run mise-check:05-show            what's done, and what to run next (mise run mise-check, too)
+
+The updates, each pin at its newest release (--no-major: no major moves):
+  mise run mise-check:update             all three below, in order
+  mise run mise-check:update-mise        the mise tools, in the repo's mise files
+  mise run mise-check:update-packages    the Node packages, package.json and its lockfile (aube)
+  mise run mise-check:update-go          Go in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
 
 And:
-  mise run mise-check:update            every pin at its newest release, in one go: the three below, in order
-  mise run mise-check:update-mise       the mise tools, in the repo's mise files
-  mise run mise-check:update-packages   the Node packages, package.json and its lockfile (aube)
-  mise run mise-check:update-go         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
-                                        each: --pick (ask for each one), --no-major (no major moves), --json
-  show and check take --json too: one JSON document on stdout, instead of text
-  mise run mise-check:show-users        which of the owner's repos use this one (go.mod, mise pins), at what version (--json)
-  mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
-  mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
-  mise run mise-check:show-version   this build's version (--json)
-  mise run mise-check:show-help      this
+  mise run mise-check:verify             what the repo's GitHub workflow runs: each pin consistent, setup, test, check
+  mise run mise-check:show-users         which of the owner's repos use this one, at what version
+  mise run mise-check:template           the template's little app, in a repo with no Go program yet: it never writes over a file
+  mise run mise-check:show-version       this build's version
+  mise run mise-check:show-help          this
+
+--json, one JSON document on stdout instead of text: show, check, the updates, show-users, show-version.
 `
 
 func main() {
@@ -47,7 +49,6 @@ func main() {
 	}
 	flags := flag.NewFlagSet("mise-check "+command, flag.ExitOnError)
 	jsonOut := flags.Bool("json", false, "print one JSON document on stdout instead of text")
-	pick := flags.Bool("pick", false, "the updates: ask for each one, with the picker of each tool")
 	noMajor := flags.Bool("no-major", false, "the updates: no major moves (packages within their ranges, Go modules within their major)")
 	flags.Usage = func() { fmt.Fprint(os.Stderr, help) }
 	flags.Parse(args)
@@ -57,7 +58,7 @@ func main() {
 	}
 	// A flag a command doesn't take is refused, not ignored: the tasks pass only their own, and so must anyone else.
 	takes := map[string][]string{"": {"json"}, "show": {"json"}, "check": {"json"}, "show-users": {"json"}, "show-version": {"json"},
-		"update": {"json", "pick", "no-major"}, "update-mise": {"json", "pick", "no-major"}, "update-packages": {"json", "pick", "no-major"}, "update-go": {"json", "pick", "no-major"}}
+		"update": {"json", "no-major"}, "update-mise": {"json", "no-major"}, "update-packages": {"json", "no-major"}, "update-go": {"json", "no-major"}}
 	flags.Visit(func(f *flag.Flag) {
 		if !slices.Contains(takes[command], f.Name) {
 			fmt.Fprintf(os.Stderr, "mise-check %s takes no --%s (mise-check show-help: every command and its flags)\n", command, f.Name)
@@ -80,7 +81,7 @@ func main() {
 		if inCI() {
 			fail(fmt.Errorf("in CI %s doesn't run: CI only checks the repo, and %s changes its pins; run mise run mise-check:%s on your machine, then mise run mise-check:verify", command, command, command))
 		}
-		o := updates{json: *jsonOut, pick: *pick, noMajor: *noMajor}
+		o := updates{json: *jsonOut, noMajor: *noMajor}
 		if o.json {
 			out = os.Stderr
 		}

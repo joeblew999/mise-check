@@ -19,8 +19,7 @@ by hand. And a repo's mise tasks drift from the Go they run, and work on one OS 
    has), and in every go.mod its Go and its modules, majors too, their import paths rewritten
    ([go-mod-upgrade](https://github.com/oligot/go-mod-upgrade)). It ends with every pin, the moved ones before → after.
    A developer who wants a say moves one kind only, each its own task named for what it acts on
-   (`mise-check:update-mise`, `mise-check:update-packages`, `mise-check:update-go`), is asked for each one
-   (`--pick`, with each tool's own picker), or takes no majors (`--no-major`). That's the binary, `mise-check`, which one command adds to a repo, as
+   (`mise-check:update-mise`, `mise-check:update-packages`, `mise-check:update-go`), or takes no majors (`--no-major`). That's the binary, `mise-check`, which one command adds to a repo, as
    [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is added: from then on every step is a mise task,
    and `mise run mise-check` shows where the repo is.
 2. **Checks a repo's mise tasks against the Go they run, both ways, and walks them end to end**: two Go packages a
@@ -163,7 +162,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
 | `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
-| `template:e2e-update` | The template where it is given old pins of every kind (with the go.mod `mise-check:template` writes, for the test only): each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. Every file put back after | After a change to an update |
+| `template:e2e-update` | The template where it is given old pins of every kind copied as it is into a folder of its own, with the go.mod `mise-check:template` writes: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
 | `new-repo:e2e-update` | A new repo given old pins of every kind: `update-mise`, `update-packages` and `update-go` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
@@ -183,8 +182,8 @@ which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
 - **A new repo**, made as a person makes one: an empty folder (`mise-check-new`) with its own git, `mise-check init`,
   then its own `mise-check:template`. Its `init` runs at this checkout's build (`local`), or at a release with
   `--version`, and pins itself in `.mise/config.toml`.
-- **The template and a new repo, each with old pins** (`TestUpdate`; `template:e2e-update` puts the template back as
-  it was after): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
+- **The template and a new repo, each with old pins** (`TestUpdate`; `template:e2e-update` runs on a copy of the template
+  as it is, so the template itself never changes): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
   go-chi/chi v1.5.4 (imported by the app) and google/uuid v1.3.0 in go.mod. `mise-check:update-mise`,
   `update-packages` and `update-go` must each move its own kind and nothing else, chi to `/v5` with the app's import
   rewritten; then `mise-check:update` has nothing left to move, and `mise-check:verify` passes. All real tools, nothing faked.

@@ -36,8 +36,8 @@ const cooldown = "7d"
 // import paths (go mod tidy before, as it skips // indirect lines, and after). mise-check at local, a checkout's build,
 // stays there; moved to a newer release, it says to write init's files again (03-init), which it doesn't do itself.
 // It ends with what moved; git diff shows it, and mise run mise-check:verify proves it (a major move can break).
-// A developer who wants a say moves one kind only (update-mise, update-packages, update-go), is asked for each one
-// (--pick), or takes no majors (--no-major).
+// A developer who wants a say moves one kind only (update-mise, update-packages, update-go), or takes no majors
+// (--no-major).
 func (r repo) update(o updates) { r.updatePins(o, "mise", "packages", "go") }
 
 // updatePins moves the pins of the kinds named, in that order, and ends with every pin: update moves all three,
@@ -51,9 +51,6 @@ func (r repo) updatePins(o updates, kinds ...string) {
 	before := r.pins(mods)
 	if does("mise") {
 		upgrade := []string{"upgrade", "--bump", "--no-global"}
-		if o.pick {
-			upgrade = append(upgrade, "--interactive")
-		}
 		for _, name := range r.atLocal() { // a checkout's own build (mise link, mise-check's or any tool's): it stays
 			upgrade = append(upgrade, "--exclude", name)
 		}
@@ -66,9 +63,6 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		aube := []string{"exec", "--", "aube", "update"}
 		if !o.noMajor {
 			aube = append(aube, "--latest") // past each range: majors too
-		}
-		if o.pick {
-			aube = append(aube, "--interactive")
 		}
 		r.runOwnMise(r.dir, aube...)
 	}
@@ -87,9 +81,7 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		if o.noMajor {
 			gmu = append(gmu, "--no-major")
 		}
-		if !o.pick {
-			gmu = append(gmu, "--force") // every one; --pick asks for each
-		}
+		gmu = append(gmu, "--force") // every one, without asking
 		for _, m := range mods {
 			r.runOwnMise(m, "exec", "--", "go", "mod", "tidy")
 			r.runOwnMise(m, gmu...)
@@ -126,7 +118,6 @@ func (r repo) updatePins(o updates, kinds ...string) {
 // updates are the update commands' choices, their flags.
 type updates struct {
 	json    bool // one JSON document on stdout, every pin before → after; the tools' own output on stderr
-	pick    bool // ask for each one, with the picker of each tool
 	noMajor bool // no major moves: packages within their ranges, Go modules within their major
 }
 

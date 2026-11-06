@@ -94,7 +94,7 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 }
 
 // TestUpdate is the update commands on a repo given old pins of every kind, on the template where it is (mise run
-// template:e2e-update, every file put back after) and on a new repo (mise run new-repo:e2e-update): a mise tool (node, in mise.toml), a
+// template:e2e-update, on a copy of it as it is, so the template itself never changes) and on a new repo (mise run new-repo:e2e-update): a mise tool (node, in mise.toml), a
 // package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and
 // one a minor behind (google/uuid). mise-check:update-mise, update-packages and update-go must each move its own kind
 // and nothing else, chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and
@@ -108,12 +108,19 @@ func TestUpdate(t *testing.T) {
 	if os.Getenv("E2E_STAMPED") == "true" {
 		n = newRepo(walk.At(t, path), "")
 	} else {
-		n = walk.At(t, path)
-		asItWas(t, n.Dir, "mise.toml", "package.json", "pnpm-lock.yaml", "go.mod", "go.sum", filepath.Join("app", "deps.go"))
-		// The go.mod mise-check:template writes into a repo, for this test only: the template has none of its own, as
-		// one would make it a module apart from mise-check's, whose embed it is.
+		// A copy of the template as it is, in a folder of its own with its own git, never the template itself: the
+		// updates change its files, and a walk stopped half way would leave them changed. Its installed packages
+		// aren't copied; its .mise/config.local.toml is, which runs this checkout's build (tool:install).
+		at := walk.At(t, path)
+		n = at.New("templates-copy")
+		if err := walk.CopyRepo(at.Dir, n.Dir, "node_modules"); err != nil {
+			t.Fatal(err)
+		}
+		n.Name = "the template, as it is (a copy)"
+		// The go.mod mise-check:template writes into a repo: the template has none of its own, as one would make it a
+		// module apart from mise-check's, whose embed it is.
 		must(t, os.WriteFile(filepath.Join(n.Dir, "go.mod"), []byte("module mise-check-template\n\ngo "+strings.TrimPrefix(runtime.Version(), "go")+"\n"), 0o644))
-		n.Pass("%s: the template where it is, with the go.mod mise-check:template writes, all put back as it was after", n.Name)
+		n.Pass("%s: %s copied, with the go.mod mise-check:template writes; the template itself is never changed", n.Name, path)
 	}
 	n.SetUp()
 
@@ -214,28 +221,6 @@ var router, id = chi.NewRouter(), uuid.NewString
 }
 
 // replace makes the one match of the pattern old in the file new.
-// asItWas puts the files of dir back as they are now when the test ends, pass or fail: one that isn't there now is
-// removed.
-func asItWas(t *testing.T, dir string, files ...string) {
-	t.Helper()
-	saved := map[string][]byte{}
-	for _, f := range files {
-		if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil {
-			saved[f] = b
-		}
-	}
-	t.Cleanup(func() {
-		for _, f := range files {
-			p := filepath.Join(dir, f)
-			if b, ok := saved[f]; ok {
-				os.WriteFile(p, b, 0o644)
-			} else {
-				os.Remove(p)
-			}
-		}
-	})
-}
-
 func replace(t *testing.T, path, old, new string) {
 	t.Helper()
 	s, re := read(t, path), regexp.MustCompile(old)

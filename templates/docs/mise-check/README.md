@@ -26,7 +26,7 @@ code of its own skips `mise-check:template`, which never writes over a file anyw
 | Task | What |
 |---|---|
 | `mise run mise-check:03-init` | mise-check's files written into the repo again, after upgrading it |
-| `mise run mise-check:04-check` | the repo's rules: init's files current, `.mise/config.toml` pinning mise-check |
+| `mise run mise-check:04-check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), init's files current, `.mise/config.toml` pinning mise-check |
 | `mise run mise-check:05-show` | what's done, and what to run next (`mise run mise-check` too) |
 
 
@@ -39,7 +39,7 @@ Then, whenever you want pins moved, each task named for what it acts on:
 | `mise run mise-check:update-packages` | the Node packages: `package.json` and its lockfile, through aube |
 | `mise run mise-check:update-go` | Go, in every `go.mod`: its toolchain line and modules, majors too |
 
-Each takes `--pick` (asked for each one, with the picker of each tool), `--no-major` (no major moves) and `--json`
+Each takes `--no-major` (no major moves) and `--json`
 (one JSON document on stdout: every pin, its file, before and after, whether it moved and whether that was a major
 move; the tools' own output goes to stderr). `show`, `check` and `show-users` take `--json` too.
 
@@ -82,11 +82,6 @@ is what fixes it:
 | Node packages | `update-packages` | `aube install --frozen-lockfile`: `package.json` and the lockfile agree |
 | Go | `update-go` | `go mod tidy -diff` in every go.mod: go.mod and go.sum are what the imports need |
 
-| Task | `--pick` | `--no-major` |
-|---|---|---|
-| `update-mise` | `mise upgrade --interactive` | (mise's own ranges) |
-| `update-packages` | `aube update --interactive` | without `--latest`: each package within its range |
-| `update-go` | go-mod-upgrade's own picker | go-mod-upgrade `--no-major` |
 
 go-mod-upgrade is pinned once, in mise-check's own root `mise.toml`, and run at that version: the repo needs nothing
 of its own for it. A newer mise-check brings a newer go-mod-upgrade.

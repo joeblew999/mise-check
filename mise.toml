@@ -64,7 +64,7 @@ env = { REPO_PATH = "templates", E2E_STAMPED = "true" }
 run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
 
 [tasks."template:e2e-update"]
-description = "After template:e2e, as both use the template: TestUpdate on the template, templates/, where it is, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:update-mise, update-packages and update-go must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. Every file put back as it was after, pass or fail. After tool:install"
+description = "After template:e2e, as both use the template: TestUpdate on the template, templates/, as it is, copied into a folder of its own, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:update-mise, update-packages and update-go must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. On a copy of the template as it is, in a folder of its own: the template itself never changes, even when the walk is stopped half way. After tool:install"
 depends = ["tool:install", "template:e2e"]
 env = { REPO_PATH = "templates", E2E_UPDATE = "true" }
 run = 'go test . -run "^TestUpdate$" -count=1 -v -timeout 20m'

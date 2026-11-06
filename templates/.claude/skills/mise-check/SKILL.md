@@ -25,8 +25,7 @@ The updates, each named for what it acts on:
 - `mise run mise-check:update-go`: Go in every `go.mod`, its toolchain line and its modules, majors too, their import
   paths rewritten.
 
-Each ends with every pin, the moved ones before → after, majors marked. `--no-major` takes no majors; `--pick` asks
-for each one, which needs a person at a terminal: never pass it yourself. After any update, run
+Each ends with every pin, the moved ones before → after, majors marked. `--no-major` takes no majors. After any update, run
 `mise run mise-check:verify`: a major move can break the repo's own code, and that's where it shows. Fix the code;
 don't move the pin back by hand.
 

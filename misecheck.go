@@ -178,6 +178,7 @@ type goSide struct {
 // and the binary when the place is one of ours; or, in neither form, the command, in notGo.
 type ran struct {
 	place, binary, notGo string
+	tree                 bool // ./... or ./path/...: Go anywhere below place, not in place itself
 }
 
 // runsOf reads a run line command by command (apart by &&, || and ;), each in one of the two forms:
@@ -209,14 +210,15 @@ func (g goSide) runsOf(run, dir string) []ran {
 			var paths []string
 			for _, w := range words[2:] {
 				if w == "." || strings.HasPrefix(w, "./") {
-					paths = append(paths, strings.TrimSuffix(strings.TrimSuffix(w, "..."), "/"))
+					paths = append(paths, w)
 				}
 			}
 			if len(paths) == 0 {
 				paths = []string{"."}
 			}
-			for _, p := range paths {
-				rans = append(rans, ran{place: abs(filepath.Join(dir, p)), binary: g.binaryAt(abs(filepath.Join(dir, p)))})
+			for _, w := range paths {
+				p := strings.TrimSuffix(strings.TrimSuffix(w, "..."), "/")
+				rans = append(rans, ran{place: abs(filepath.Join(dir, p)), binary: g.binaryAt(abs(filepath.Join(dir, p))), tree: strings.HasSuffix(w, "...")})
 			}
 		case g.cmd != "" && slices.Contains(g.binaries, words[0]):
 			place := filepath.Join(g.cmd, words[0])
@@ -261,7 +263,7 @@ func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 				continue
 			}
 			places++
-			if !isGo(r.place) {
+			if !isGo(r.place) && !(r.tree && hasGoBelow(r.place)) {
 				missing++
 				t.Errorf("mise → Go: %s's task %s runs %q, so its Go is %s, and there's none there", file, task.name, task.run, displayPath(r.place))
 			}
@@ -611,6 +613,24 @@ func isGo(place string) bool {
 		return false
 	}
 	return slices.ContainsFunc(entries, func(e os.DirEntry) bool { return !e.IsDir() && strings.HasSuffix(e.Name(), ".go") })
+}
+
+// hasGoBelow reports whether a folder holds Go anywhere below it, as go test ./... finds it: none in vendor, testdata or a
+// folder whose name starts with a dot or an underscore, nor in node_modules.
+func hasGoBelow(place string) bool {
+	found := false
+	filepath.WalkDir(place, func(p string, d os.DirEntry, err error) error {
+		switch {
+		case err != nil || found:
+			return filepath.SkipAll
+		case d.IsDir() && p != place && (d.Name() == "vendor" || d.Name() == "testdata" || d.Name() == "node_modules" || strings.HasPrefix(d.Name(), ".") || strings.HasPrefix(d.Name(), "_")):
+			return filepath.SkipDir
+		case !d.IsDir() && strings.HasSuffix(d.Name(), ".go"):
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // abs is place by its full path, so places compare whatever folder they were named from.

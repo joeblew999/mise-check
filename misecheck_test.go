@@ -82,8 +82,8 @@ func TestRunForms(t *testing.T) {
 		"CI=1 tool check --json":          {{place: in("cmd", "tool", "check.go"), binary: "tool"}},
 		"go run ./cmd/tool -x":            {{place: in("cmd", "tool"), binary: "tool"}},
 		"go test ./e2e -run '^TestX$' -v": {{place: in("e2e")}},
-		"go test ./...":                   {{place: in()}},
-		"go vet ./... && go test ./...":   {{notGo: "go vet ./..."}, {place: in()}},
+		"go test ./...":                   {{place: in(), tree: true}},
+		"go vet ./... && go test ./...":   {{notGo: "go vet ./..."}, {place: in(), tree: true}},
 		"go tool tool dev":                {{place: in("cmd", "tool", "dev.go"), binary: "tool"}},
 		"go tool tool{% if usage.json %} --json{% endif %}": {{place: in("cmd", "tool"), binary: "tool"}},
 		"go tool gsx generate":                              {{notGo: "go tool gsx generate"}},
@@ -135,8 +135,8 @@ func TestBroken(t *testing.T) {
 			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "mise-check", "show_version.go")) },
 			"and there's none there"},
 		{"a flag added in Go, not in its task's usage",
-			edit(filepath.Join("cmd", "mise-check", "main.go"), `	pick := flags.Bool(`, `	flags.Bool("loud", false, "")
-	pick := flags.Bool(`),
+			edit(filepath.Join("cmd", "mise-check", "main.go"), `	noMajor := flags.Bool(`, `	flags.Bool("loud", false, "")
+	noMajor := flags.Bool(`),
 			"defines the flag --loud"},
 		{"a flag added to a task's usage, not in its Go",
 			edit(tasksFile, `flag "--json" help="one JSON document on stdout, instead of text"'
@@ -144,8 +144,8 @@ run = 'mise-check show-version`, `flag "--json" help="one JSON document on stdou
 run = 'mise-check show-version{% if usage.color %} --color{% endif %}`),
 			"declares the flag --color"},
 		{"a flag declared, and its run doesn't pass it",
-			edit(tasksFile, `mise-check update-go{% if usage.pick %} --pick{% endif %}`, `mise-check update-go`),
-			"declares the flag --pick, and its run doesn't pass it"},
+			edit(tasksFile, `mise-check update-go{% if usage.no_major %} --no-major{% endif %}`, `mise-check update-go`),
+			"declares the flag --no-major, and its run doesn't pass it"},
 		{"POSIX shell syntax, which Windows' cmd doesn't read",
 			edit(tasksFile, `run = "mise-check show-help"`, `run = "GREETING=1 mise-check show-help"`),
 			"has POSIX shell syntax"},

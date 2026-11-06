@@ -15,7 +15,7 @@ description = "03. mise-check's files written into the repo again, after upgradi
 run = "mise-check init"
 
 ["mise-check:04-check"]
-description = "04. The repo's rules: init's files current, and .mise/config.toml pinning mise-check"
+description = "04. The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), init's files current, and .mise/config.toml pinning mise-check"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check check{% if usage.json %} --json{% endif %}'
 
@@ -26,23 +26,23 @@ run = 'mise-check show{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update"]
 description = "Every pin at its newest release, in one go: update-mise, update-packages and update-go, in that order. It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them (a major move can break)"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
-run = 'mise-check update{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
+usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-mise"]
 description = "The mise tools at their newest releases, in the repo's mise files (mise upgrade --bump), mise-check's own pin among them, and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
-run = 'mise-check update-mise{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
+usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-mise{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-packages"]
 description = "The Node packages at their newest releases, package.json and whichever lockfile the repo has (aube update, aube pinned in the repo's mise), and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
-run = 'mise-check update-packages{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
+usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-packages{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-go"]
 description = "Go at its newest, in every go.mod: its toolchain line, and its modules, majors too, their import paths rewritten (go mod tidy, go-mod-upgrade, go mod tidy), and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
-run = 'mise-check update-go{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
+usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-go{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show-users"]
 description = "Which of the owner's repos on GitHub use this one: its Go module in their go.mod, its binary in their mise files, at the versions each pins, against the newest release, the behind ones marked. Needs a token for private repos (GITHUB_TOKEN, GH_TOKEN, or gh's login)"

@@ -20,9 +20,9 @@ with no Go program yet), `mise run mise-check:show-help`.
 The updates, each named for what it acts on:
 
 - `mise run mise-check:update`: all three below, in order. The one to run when the person says "upgrade everything".
-- `mise run mise-check:mise-update`: the mise tools, in the repo's mise files.
-- `mise run mise-check:packages-update`: the Node packages, `package.json` and its lockfile, through aube.
-- `mise run mise-check:go-update`: Go in every `go.mod`, its toolchain line and its modules, majors too, their import
+- `mise run mise-check:update-mise`: the mise tools, in the repo's mise files.
+- `mise run mise-check:update-packages`: the Node packages, `package.json` and its lockfile, through aube.
+- `mise run mise-check:update-go`: Go in every `go.mod`, its toolchain line and its modules, majors too, their import
   paths rewritten.
 
 Each ends with every pin, the moved ones before → after, majors marked. `--no-major` takes no majors; `--pick` asks

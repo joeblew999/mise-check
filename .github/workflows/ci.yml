@@ -57,15 +57,5 @@ jobs:
           mise --version
           mise install
 
-      - name: Its own tests, and itself on its own mise file (mise run tool:test, root:check-mise)
-        run: |
-          mise run tool:test
-          mise run root:check-mise
-
-      - name: misecheck on the template's tasks, then the walk and update on old pins of every kind, each on the template and on a new repo (mise run template:check-mise, template:e2e, template:e2e-update, new-repo:e2e, new-repo:e2e-update)
-        run: |
-          mise run template:check-mise
-          mise run template:e2e
-          mise run template:e2e-update
-          mise run new-repo:e2e
-          mise run new-repo:e2e-update
+      - name: Everything, as on any machine (mise run root:verify)
+        run: mise run root:verify

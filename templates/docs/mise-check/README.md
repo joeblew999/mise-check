@@ -33,9 +33,9 @@ Then, whenever you want pins moved, each task named for what it acts on:
 | Task | Acts on |
 |---|---|
 | `mise run mise-check:update` | all three below, in order |
-| `mise run mise-check:mise-update` | the mise tools, in the repo's mise files |
-| `mise run mise-check:packages-update` | the Node packages: `package.json` and its lockfile, through aube |
-| `mise run mise-check:go-update` | Go, in every `go.mod`: its toolchain line and modules, majors too |
+| `mise run mise-check:update-mise` | the mise tools, in the repo's mise files |
+| `mise run mise-check:update-packages` | the Node packages: `package.json` and its lockfile, through aube |
+| `mise run mise-check:update-go` | Go, in every `go.mod`: its toolchain line and modules, majors too |
 
 Each takes `--pick` (asked for each one, with the picker of each tool) and `--no-major` (no major moves).
 
@@ -46,7 +46,7 @@ And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs o
 ## What the updates run
 
 `mise run mise-check:update` moves every pin the repo has of its own, each with its own tool (each step below is
-also a task of its own: `mise-update`, `packages-update`, `go-update`), and mise reads no
+also a task of its own: `update-mise`, `update-packages`, `update-go`), and mise reads no
 parent folder's config, so nothing outside the repo moves:
 
 1. mise's tools, in the repo's mise files: `mise upgrade --bump --local`
@@ -61,13 +61,13 @@ mise-check:verify` proves them, as a major move can break the repo's own code. m
 rest: then `mise run mise-check:03-init` writes its files again. In CI it doesn't run: CI only checks.
 
 go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. mise can't write a `go.mod` (its
-idiomatic version file for Go), so `mise-update` leaves Go to `go-update`.
+idiomatic version file for Go), so `update-mise` leaves Go to `update-go`.
 
 | Task | `--pick` | `--no-major` |
 |---|---|---|
-| `mise-update` | `mise upgrade --interactive` | (mise's own ranges) |
-| `packages-update` | `aube update --interactive` | without `--latest`: each package within its range |
-| `go-update` | go-mod-upgrade's own picker | go-mod-upgrade `--no-major` |
+| `update-mise` | `mise upgrade --interactive` | (mise's own ranges) |
+| `update-packages` | `aube update --interactive` | without `--latest`: each package within its range |
+| `update-go` | go-mod-upgrade's own picker | go-mod-upgrade `--no-major` |
 
 go-mod-upgrade is pinned once, in mise-check's own `go.mod`, and run at that version: the repo needs no line of its
 own for it. A newer mise-check brings a newer go-mod-upgrade.

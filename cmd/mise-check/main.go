@@ -26,9 +26,9 @@ The steps, in order (mise run mise-check says which is next):
 
 And:
   mise run mise-check:update            every pin at its newest release, in one go: the three below, in order
-  mise run mise-check:mise-update       the mise tools, in the repo's mise files
-  mise run mise-check:packages-update   the Node packages, package.json and its lockfile (aube)
-  mise run mise-check:go-update         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
+  mise run mise-check:update-mise       the mise tools, in the repo's mise files
+  mise run mise-check:update-packages   the Node packages, package.json and its lockfile (aube)
+  mise run mise-check:update-go         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
                                         each: --pick (ask for each one), --no-major (no major moves)
   mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
   mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
@@ -64,7 +64,7 @@ func main() {
 		sayNewest()
 	case "check":
 		r.check(*jsonOut)
-	case "update", "mise-update", "packages-update", "go-update":
+	case "update", "update-mise", "update-packages", "update-go":
 		if inCI() {
 			fail(fmt.Errorf("in CI %s doesn't run: CI only checks the repo, and %s changes its pins; run mise run mise-check:%s on your machine, then mise run mise-check:verify", command, command, command))
 		}
@@ -72,12 +72,12 @@ func main() {
 		switch command {
 		case "update":
 			r.update(o)
-		case "mise-update":
-			r.miseUpdate(o)
-		case "packages-update":
-			r.packagesUpdate(o)
-		case "go-update":
-			r.goUpdate(o)
+		case "update-mise":
+			r.updateMise(o)
+		case "update-packages":
+			r.updatePackages(o)
+		case "update-go":
+			r.updateGo(o)
 		}
 	case "verify":
 		r.verify()

@@ -93,7 +93,7 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 // TestUpdate is the update commands on a repo given old pins of every kind, on the template where it is (mise run
 // template:e2e-update, every file put back after) and on a new repo (mise run new-repo:e2e-update): a mise tool (node, in mise.toml), a
 // package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and
-// one a minor behind (google/uuid). mise-check:mise-update, packages-update and go-update must each move its own kind
+// one a minor behind (google/uuid). mise-check:update-mise, update-packages and update-go must each move its own kind
 // and nothing else, chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and
 // mise-check:verify passes. Run by mise run new-repo:e2e-update (E2E_UPDATE=true).
 func TestUpdate(t *testing.T) {
@@ -159,22 +159,22 @@ var router, id = chi.NewRouter(), uuid.NewString
 	}
 	gomod := []string{"github.com/google/uuid v1.3.0 → ", "github.com/go-chi/chi v1.5.4 → none", "github.com/go-chi/chi/v5 none → v5."}
 
-	n.Heading("mise-check:mise-update: the mise tools, and nothing else")
-	moved("mise-check:mise-update", update("mise-check:mise-update"), []string{"node 24.11.0 → "}, append([]string{"wrangler 4.100.0 → "}, gomod...))
+	n.Heading("mise-check:update-mise: the mise tools, and nothing else")
+	moved("mise-check:update-mise", update("mise-check:update-mise"), []string{"node 24.11.0 → "}, append([]string{"wrangler 4.100.0 → "}, gomod...))
 	if strings.Contains(read(t, filepath.Join(n.Dir, "mise.toml")), `node = "24.11.0"`) {
 		t.Fatal("mise.toml still pins node 24.11.0")
 	}
 	n.Pass("node moved in mise.toml; wrangler and the Go modules stayed")
 
-	n.Heading("mise-check:packages-update: the Node packages, and nothing else")
-	moved("mise-check:packages-update", update("mise-check:packages-update"), []string{"wrangler 4.100.0 → "}, gomod)
+	n.Heading("mise-check:update-packages: the Node packages, and nothing else")
+	moved("mise-check:update-packages", update("mise-check:update-packages"), []string{"wrangler 4.100.0 → "}, gomod)
 	if strings.Contains(read(t, filepath.Join(n.Dir, "package.json")), `"4.100.0"`) {
 		t.Fatal("package.json still pins wrangler 4.100.0")
 	}
 	n.Pass("wrangler moved in package.json and its lockfile; the Go modules stayed")
 
-	n.Heading("mise-check:go-update: Go and its modules, majors too")
-	moved("mise-check:go-update", update("mise-check:go-update"), gomod, nil)
+	n.Heading("mise-check:update-go: Go and its modules, majors too")
+	moved("mise-check:update-go", update("mise-check:update-go"), gomod, nil)
 	gm := read(t, filepath.Join(n.Dir, "go.mod"))
 	deps := read(t, filepath.Join(n.Dir, "app", "deps.go"))
 	switch {

@@ -142,7 +142,7 @@ func TestBroken(t *testing.T) {
 			edit(tasksFile, `run = "mise-check show-version"`, "usage = 'flag \"--color\" help=\"c\"'\nrun = 'mise-check show-version{% if usage.color %} --color{% endif %}'"),
 			"declares the flag --color"},
 		{"a flag declared, and its run doesn't pass it",
-			edit(tasksFile, `mise-check go-update{% if usage.pick %} --pick{% endif %}`, `mise-check go-update`),
+			edit(tasksFile, `mise-check update-go{% if usage.pick %} --pick{% endif %}`, `mise-check update-go`),
 			"declares the flag --pick, and its run doesn't pass it"},
 		{"POSIX shell syntax, which Windows' cmd doesn't read",
 			edit(tasksFile, `run = "mise-check show-version"`, `run = "GREETING=1 mise-check show-version"`),

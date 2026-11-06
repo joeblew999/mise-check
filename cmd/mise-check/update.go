@@ -34,12 +34,12 @@ const cooldown = "7d"
 // import paths (go mod tidy before, as it skips // indirect lines, and after). mise-check at local, a checkout's build,
 // stays there; moved to a newer release, it says to write init's files again (03-init), which it doesn't do itself.
 // It ends with what moved; git diff shows it, and mise run mise-check:verify proves it (a major move can break).
-// A developer who wants a say moves one kind only (mise-update, packages-update, go-update), is asked for each one
+// A developer who wants a say moves one kind only (update-mise, update-packages, update-go), is asked for each one
 // (--pick), or takes no majors (--no-major).
 func (r repo) update(o updates) { r.updatePins(o, "mise", "packages", "go") }
 
 // updatePins moves the pins of the kinds named, in that order, and ends with every pin: update moves all three,
-// mise-update, packages-update and go-update one each.
+// update-mise, update-packages and update-go one each.
 func (r repo) updatePins(o updates, kinds ...string) {
 	does := func(kind string) bool { return slices.Contains(kinds, kind) }
 	if does("packages") && r.exists("package.json") && r.mise("which", "aube") == "" {
@@ -55,7 +55,7 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		if selfPin(before) == "local" {
 			upgrade = append(upgrade, "--exclude", self)
 		}
-		for _, name := range r.fromGoMod() { // Go, which go.mod pins: go-update's, as mise can't write go.mod
+		for _, name := range r.fromGoMod() { // Go, which go.mod pins: update-go's, as mise can't write go.mod
 			upgrade = append(upgrade, "--exclude", name)
 		}
 		r.runOwnMise(r.dir, upgrade...)
@@ -182,7 +182,7 @@ func (r repo) pins(mods []string) map[string]string {
 }
 
 // fromGoMod are the tools mise reads from a go.mod (go, with idiomatic_version_file_enable_tools), which mise upgrade
-// --bump can't write: go-update moves them.
+// --bump can't write: update-go moves them.
 func (r repo) fromGoMod() []string {
 	var tools map[string][]struct{ Source struct{ Path string } }
 	var names []string

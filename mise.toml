@@ -2,6 +2,7 @@
 # gets nothing from this file, nor any mise at all: it imports the Go module, go get github.com/joeblew999/mise-check.
 #   mise run tool:test          go vet, and the tests of the checker (the template broken nine ways), the walk, and the binary (none of them walk)
 #   mise run root:check-mise    misecheck on this very file: the repo uses itself as any repo does
+#   mise run root:verify       everything GitHub's CI runs, here, the same: its parts at once, as fast as they go
 #   mise run tool:build        the binary, bin/mise-check (.exe on Windows)
 #   mise run tool:install      that build as the mise version local, the template's on this machine (and any repo's)
 #   mise run template:check-mise   misecheck on the template's tasks against the binary's Go, and the walk that runs them
@@ -61,8 +62,8 @@ env = { REPO_PATH = "templates", E2E_STAMPED = "true" }
 run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
 
 [tasks."template:e2e-update"]
-description = "TestUpdate on the template, templates/, where it is, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:mise-update, packages-update and go-update must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. Every file put back as it was after, pass or fail. After tool:install"
-depends = ["tool:install"]
+description = "After template:e2e, as both use the template: TestUpdate on the template, templates/, where it is, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:update-mise, update-packages and update-go must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. Every file put back as it was after, pass or fail. After tool:install"
+depends = ["tool:install", "template:e2e"]
 env = { REPO_PATH = "templates", E2E_UPDATE = "true" }
 run = 'go test . -run "^TestUpdate$" -count=1 -v -timeout 20m'
 
@@ -88,3 +89,7 @@ description = "A release of mise-check from the commit checked out, as release.y
 usage = 'flag "--dry-run" help="tag and publish nothing: goreleaser builds a snapshot into dist/"'
 depends = ["tool:test"]
 run = 'go test . -run "^TestToolRelease$" -count=1 -v -timeout 30m{% if usage.dry_run %} -args -dry-run{% endif %}'
+
+[tasks."root:verify"]
+description = "Everything GitHub's CI runs on this repo (ci.yml runs exactly this), here the same: tool:test, root:check-mise, template:check-mise, template:e2e then template:e2e-update (both use the template), new-repo:e2e and new-repo:e2e-update, at once where they can"
+depends = ["tool:test", "root:check-mise", "template:check-mise", "template:e2e-update", "new-repo:e2e", "new-repo:e2e-update"]

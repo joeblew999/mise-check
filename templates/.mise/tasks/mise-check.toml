@@ -14,7 +14,7 @@ description = "writes mise-check's files again: its tasks, the workflow, the ski
 run = "mise-check init"
 
 ["mise-check:check"]
-description = "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin"
+description = "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its two pins (the binary in mise, the packages in go.mod) at one release"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check check{% if usage.json %} --json{% endif %}'
 
@@ -28,7 +28,7 @@ description = "what GitHub runs: each pin consistent with what pins it, the repo
 run = "mise-check verify"
 
 ["mise-check:update"]
-description = "every pin at its newest: the three below, in order"
+description = "every pin at its newest: the three below, in order, then mise-check's two pins at one release"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 

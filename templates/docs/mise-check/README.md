@@ -27,10 +27,10 @@ code of its own skips `mise-check:template`, which never writes over a file anyw
 |---|---|---|
 | `mise run mise-check` | first, and whenever you're unsure | what's done for the repo, and what to run next |
 | `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook |
-| `mise run mise-check:check` | after any change to a mise file or a skill; when it fails, fix the side it names | the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin |
+| `mise run mise-check:check` | after any change to a mise file or a skill; when it fails, fix the side it names | the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its two pins (the binary in mise, the packages in go.mod) at one release |
 | `mise run mise-check:show` | to see where the repo is | the same as mise run mise-check |
 | `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
-| `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order |
+| `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order, then mise-check's two pins at one release |
 | `mise run mise-check:update-mise` | to upgrade the mise tools only | the tools in the repo's mise files |
 | `mise run mise-check:update-packages` | to upgrade the Node packages only | package.json and its lockfile, through aube |
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |

@@ -33,7 +33,7 @@ func (r repo) check(jsonOut bool) {
 }
 
 // rules are check's problems: init's files as this version writes them, .mise/config.toml pinning mise-check, the one
-// pin of it, misecheck's rules on the repo's own mise files, and every skill of the repo against its tasks. None, and
+// pin of it, the binary's pin and the packages' (go.mod) at one release, misecheck's rules on the repo's own mise files, and every skill of the repo against its tasks. None, and
 // the repo passes.
 func (r repo) rules() []string {
 	problems := append(r.stale(), r.miseRules()...)
@@ -43,6 +43,9 @@ func (r repo) rules() []string {
 		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run mise run mise-check:init")
 	case !pinLine.Match(b):
 		problems = append(problems, ".mise/config.toml doesn't pin "+self+": add it, mise use --path .mise/config.toml "+self+"@latest")
+	}
+	if p := r.selves(r.goModules()).apart(); p != "" {
+		problems = append(problems, p)
 	}
 	return problems
 }

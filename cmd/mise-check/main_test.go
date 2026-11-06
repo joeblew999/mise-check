@@ -24,3 +24,24 @@ func TestPin(t *testing.T) {
 		t.Fatalf("mise.toml pins go:%s %s, and update.go's goModUpgrade is @%s: make it %s@v%s", path, m[1], want, path, m[1])
 	}
 }
+
+// TestOneRelease: mise-check's two pins, the binary's and the packages', are apart only when both are there and differ.
+func TestOneRelease(t *testing.T) {
+	for _, c := range []struct {
+		s    selves
+		want bool
+	}{
+		{selves{mise: "0.4.20", module: "v0.4.20"}, false},
+		{selves{mise: "0.4.19", module: "v0.4.20"}, true},
+		{selves{mise: "0.4.20", module: "v0.4.9"}, true},
+		{selves{mise: "", module: "v0.4.20"}, false},
+		{selves{mise: "0.4.20", module: ""}, false},
+	} {
+		if got := c.s.apart() != ""; got != c.want {
+			t.Errorf("%+v: apart %v, want %v", c.s, got, c.want)
+		}
+	}
+	if !newer("v0.4.20", "v0.4.9") || newer("v0.4.9", "v0.4.20") || newer("v0.4.20", "v0.4.20") {
+		t.Error("newer compares releases by number")
+	}
+}

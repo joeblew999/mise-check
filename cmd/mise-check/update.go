@@ -93,6 +93,13 @@ func (r repo) updatePins(o updates, kinds ...string) {
 			r.runOwnMise(m, "exec", "--", "go", "mod", "tidy")
 		}
 	}
+	// mise-check's two pins, the binary and the packages, at one release: update moves both to the newer; an update of
+	// one kind moves only its own, and says when they're apart.
+	if s := r.selves(mods); len(kinds) == 3 {
+		r.together(s)
+	} else if p := s.apart(); p != "" {
+		fmt.Fprintln(os.Stderr, "! "+p)
+	}
 	after := r.pins(mods)
 	if o.json {
 		emit(pinsMoved(before, after))

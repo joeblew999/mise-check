@@ -27,10 +27,10 @@ type command struct{ task, does, when string }
 var commands = []command{
 	{"mise-check", "what's done for the repo, and what to run next", "first, and whenever you're unsure"},
 	{"mise-check:init", "writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook", "after upgrading mise-check"},
-	{"mise-check:check", "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin", "after any change to a mise file or a skill; when it fails, fix the side it names"},
+	{"mise-check:check", "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its two pins (the binary in mise, the packages in go.mod) at one release", "after any change to a mise file or a skill; when it fails, fix the side it names"},
 	{"mise-check:show", "the same as mise run mise-check", "to see where the repo is"},
 	{"mise-check:verify", "what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check", "before every push"},
-	{"mise-check:update", "every pin at its newest: the three below, in order", "when the person asks to upgrade everything"},
+	{"mise-check:update", "every pin at its newest: the three below, in order, then mise-check's two pins at one release", "when the person asks to upgrade everything"},
 	{"mise-check:update-mise", "the tools in the repo's mise files", "to upgrade the mise tools only"},
 	{"mise-check:update-packages", "package.json and its lockfile, through aube", "to upgrade the Node packages only"},
 	{"mise-check:update-go", "every go.mod's toolchain line and modules, majors too, their import paths rewritten", "to upgrade Go only"},

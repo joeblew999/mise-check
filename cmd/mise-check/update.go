@@ -55,6 +55,9 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		if selfPin(before) == "local" {
 			upgrade = append(upgrade, "--exclude", self)
 		}
+		for _, name := range r.fromGoMod() { // Go, which go.mod pins: go-update's, as mise can't write go.mod
+			upgrade = append(upgrade, "--exclude", name)
+		}
 		r.runOwnMise(r.dir, upgrade...)
 	}
 	if does("packages") && r.exists("package.json") {
@@ -176,6 +179,23 @@ func (r repo) pins(mods []string) map[string]string {
 		}
 	}
 	return p
+}
+
+// fromGoMod are the tools mise reads from a go.mod (go, with idiomatic_version_file_enable_tools), which mise upgrade
+// --bump can't write: go-update moves them.
+func (r repo) fromGoMod() []string {
+	var tools map[string][]struct{ Source struct{ Path string } }
+	var names []string
+	if json.Unmarshal([]byte(r.mise("ls", "--no-global", "--json")), &tools) == nil {
+		for name, vs := range tools {
+			for _, v := range vs {
+				if filepath.Base(v.Source.Path) == "go.mod" && !slices.Contains(names, name) {
+					names = append(names, name)
+				}
+			}
+		}
+	}
+	return names
 }
 
 // selfPin is the version of mise-check the repo's mise pins, from whichever file it does: "" if none.

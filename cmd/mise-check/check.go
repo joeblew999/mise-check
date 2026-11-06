@@ -33,7 +33,8 @@ func (r repo) check(jsonOut bool) {
 }
 
 // rules are check's problems: init's files as this version writes them, .mise/config.toml pinning mise-check, the one
-// pin of it, and misecheck's rules on the repo's own mise files. None, and the repo passes.
+// pin of it, misecheck's rules on the repo's own mise files, and every skill of the repo against its tasks. None, and
+// the repo passes.
 func (r repo) rules() []string {
 	problems := append(r.stale(), r.miseRules()...)
 	b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml"))
@@ -67,16 +68,23 @@ func (r repo) miseRules() []string {
 			problems = append(problems, f+": "+e)
 		}
 	}
-	return problems
+	// Every agent skill of the repo against the tasks it's for (.claude/skills/<namespace>/SKILL.md ↔ <namespace>:…):
+	// it names each of them and each flag they take, and only tasks there are.
+	return append(problems, recorded(func(t testing.TB) { misecheck.CheckSkills(t, r.dir) })...)
 }
 
 // misecheckOn is what misecheck reports as errors on the mise file, its mise side only.
 func misecheckOn(file string) []string {
+	return recorded(func(t testing.TB) { misecheck.Check(t, misecheck.Config{MiseFile: file}) })
+}
+
+// recorded is what a misecheck check reports as errors, given a recorder for its testing.TB.
+func recorded(check func(testing.TB)) []string {
 	rec := &recorder{}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		misecheck.Check(rec, misecheck.Config{MiseFile: file})
+		check(rec)
 	}()
 	<-done
 	return rec.errors

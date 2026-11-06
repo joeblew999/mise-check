@@ -69,79 +69,18 @@ what each update moves and how, and its flags. That page is
 [templates/docs/mise-check/README.md](templates/docs/mise-check/README.md) here, in the template, just as a repo has
 it: the one place for how to use mise-check, so this README doesn't repeat it.
 
-## Use misecheck
+## How it keeps a repo's tasks in step
 
-A repo with mise-check's binary gets misecheck's rules on its own mise files with no code: `mise run
-mise-check:check` runs them on its `mise.toml` and `.mise/tasks/*.toml` (each task one line, usage passed by name, no
-POSIX shell syntax). The strict checks, for a repo with a binary of its own (its tasks against its Go, the tests that
-run them, and its skill), are a test of your own, which calls it:
+mise-check holds one structure on a repo's mise files and everything around them, both ways, so nothing drifts: every
+task one line, its flags declared and passed by name, no shell syntax Windows can't run; every task's command a
+command of the Go binary it runs, and every command a task's, each flag on both sides; every task the end-to-end tests
+name a task; and every agent skill (`.claude/skills/<namespace>/SKILL.md`) naming every task and flag of its
+namespace, and only tasks there are. `mise run mise-check:check` runs it in any repo, with no code of the repo's own;
+a repo with a binary of its own adds the strict checks with one test, `misecheck.Check`. The end-to-end tests are
+`walk`: a repo's tasks run in turn, through its own mise file, on its template and on a new repo.
 
-```go
-func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }
-```
-
-and a task of your mise file runs that test, saying what to check:
-
-```toml
-[tasks."root:check-mise"]
-env = { MISE_FILE = "mise.toml" }
-run = 'go test . -run "^TestMise$" -count=1 -v'
-```
-
-| Variable | What |
-|---|---|
-| `MISE_FILE` | The mise file: a `mise.toml`, or a file of tasks only (`.mise/tasks/*.toml`). Without it, the check skips |
-| `GO_CMD`, `GO_LAYOUT` | For tasks that run binaries of yours: their folder (`<GO_CMD>/<binary>/`), and how each binary's commands are laid out, `file` (a file each) or `folder` (a folder each). Both, or neither |
-| `GO_CALLERS` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
-| `GO_BINARIES` | Which binaries of `GO_CMD` to hold to the strict way, comma-separated (optional; empty, all of them): for a repo taking it up one binary at a time |
-| `SKILL_FILE` | The agent skill of these tasks, a `SKILL.md` (optional): it must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
-
-## Use walk
-
-Your test says only what's yours: the steps (each a task of your mise file, named in full, and what to check after it)
-and how a person makes a new repo with your tool. `walk` does the rest: the repo cut off from the repo
-around it (its own mise only), its tasks run by name, its setup, the steps in order, the files a step changed,
-process groups and Windows' long paths.
-
-```go
-var myWalk = walk.Walk[*myRepo]{Steps: steps, New: newRepo, Of: func(r walk.Repo) *myRepo { return &myRepo{r} }}
-
-func TestWalk(t *testing.T)  { myWalk.Run(t) }
-func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/mytool.toml", steps) }
-```
-
-A task of your mise file runs it, saying which repo:
-
-| Variable | What |
-|---|---|
-| `REPO_PATH` | The folder to walk, from where the test runs: `templates`, your template where it is. Without it, the walk skips |
-| `E2E_STAMPED=true` | Walk a new repo instead, made from nothing by your `New` |
-| `E2E_STAGE` | How far to walk, when your steps have stages |
-
-For a tool whose steps are numbered in the order a repo takes them (mise-cloudflare's `cloudflare:03-init` to
-`15-clean`), `CheckSteps` fails unless your steps are exactly your mise file's numbered tasks, in their order; a tool
-with few steps (mise-check's `init`, `check`, `show`) needs no numbers, and no `TestSteps`. Either way, misecheck
-(`GO_CALLERS`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
-files can't give it, cut off from the repo around it, `Prepare` adds it (mise-check's own gives its template, a folder of
-its module with no `go.mod` of its own, that module's Go).
-
-## What misecheck checks
-
-Every task: its `run` and `usage` are each one line; it declares its flags and arguments in mise's `usage` and passes
-each by name with mise's templates (`{% if usage.yes %} --yes{% endif %}`); its run has no POSIX shell syntax
-(`${…}`, `$name`, `NAME=value cmd`), which Windows' cmd doesn't read.
-
-The Go a task runs: from source (`go run|test|build ./path`, any folder, several) the folder must hold Go, and for
-`./...` or `./path/...` Go anywhere below it, as `go test` finds it;
-a binary of yours (`<binary> <command>`, built or run as `go tool <binary> <command>`) must have that command, every command must be one a task runs, and every flag
-is declared on both sides. Anything else a task runs (`hugo …`, `wrangler …`) is held to the rules every task is, above, and logged as not
-checked: a file of only such tool tasks passes on those rules alone, unless it's given `GO_CMD` (then its tasks must
-run its Go).
-
-Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. The skill (`SKILL_FILE`)
-names every task and every flag, and every task it names is one.
-
-The full rules are the [package documentation](https://pkg.go.dev/github.com/joeblew999/mise-check).
+How to use all of it, misecheck and walk included, is the template's
+[docs/mise-check/README.md](templates/docs/mise-check/README.md), the page every repo gets.
 
 ## Working on mise-check
 

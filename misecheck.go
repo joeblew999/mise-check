@@ -255,6 +255,41 @@ func (g goSide) binaryAt(place string) string {
 	return ""
 }
 
+// CheckSkills holds every agent skill of the repo at dir to the tasks it's for, as checkSkill does one: a skill in
+// .claude/skills/<name>/SKILL.md is the skill of the tasks of namespace <name> (the task <name>, and <name>:…), in the
+// repo's mise.toml and .mise/tasks/*.toml. Each such skill names every one of its tasks and every flag they take, and
+// every task of its namespace it names is one. A skill whose namespace has no tasks is the repo's own business, left
+// alone. With GO_CMD holding each tool's tasks to its Go, every tool's skill is held to everything its binary can do.
+// mise-check check runs it in every repo; a test of a repo's own can too.
+func CheckSkills(t testing.TB, dir string) {
+	t.Helper()
+	files := []string{}
+	if _, err := os.Stat(filepath.Join(dir, "mise.toml")); err == nil {
+		files = append(files, filepath.Join(dir, "mise.toml"))
+	}
+	more, _ := filepath.Glob(filepath.Join(dir, ".mise", "tasks", "*.toml"))
+	files = append(files, more...)
+	skills, _ := filepath.Glob(filepath.Join(dir, ".claude", "skills", "*", "SKILL.md"))
+	for _, skill := range skills {
+		ns := filepath.Base(filepath.Dir(skill))
+		for _, file := range files {
+			tasks, _, err := readTasks(file)
+			if err != nil {
+				continue
+			}
+			var mine []task
+			for _, tk := range tasks {
+				if tk.name == ns || strings.HasPrefix(tk.name, ns+":") {
+					mine = append(mine, tk)
+				}
+			}
+			if len(mine) > 0 {
+				checkSkill(t, file, mine, skill)
+			}
+		}
+	}
+}
+
 // ---- The checks ----
 
 // checkSkill holds the agent skill of the tasks to them, both ways, so an agent is never told of a task that isn't

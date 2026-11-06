@@ -121,9 +121,23 @@ type updates struct {
 	noMajor bool // no major moves: packages within their ranges, Go modules within their major
 }
 
-// goModules are the folders of every go.mod in the repo, its own first: none in vendor, node_modules, testdata or a
-// folder whose name starts with a dot.
+// goModules are the folders of every go.mod of the repo's own, its top's first: the ones git tracks or would (git
+// ls-files), so nothing git ignores (another repo's clone, say: mise-cloudflare's repos/) and no other repo inside it
+// is ever updated. In a folder that isn't a git repo, every go.mod under it but those in vendor, node_modules, testdata
+// or a folder whose name starts with a dot.
 func (r repo) goModules() []string {
+	ls := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "go.mod", "**/go.mod")
+	ls.Dir = r.dir
+	if out, err := ls.Output(); err == nil {
+		var mods []string
+		for _, f := range strings.Fields(string(out)) {
+			if !strings.Contains("/"+f, "/vendor/") && !strings.Contains("/"+f, "/testdata/") {
+				mods = append(mods, filepath.Join(r.dir, filepath.Dir(filepath.FromSlash(f))))
+			}
+		}
+		slices.SortFunc(mods, func(a, b string) int { return cmp.Compare(len(a), len(b)) })
+		return mods
+	}
 	var mods []string
 	must(filepath.WalkDir(r.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

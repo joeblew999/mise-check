@@ -1,0 +1,51 @@
+# This repo's greet: the example tool of mise-check's reference (github.com/joeblew999/mise-check/example). Start with:
+# mise run greet (what's done, and what to run next). One task per command, numbered in the order a repo meets them:
+# mise run greet:<nn>-<command> runs go tool greet <command>, at the version the repo's go.mod pins. Steps 00 to 02 come
+# before these tasks: the repo's git, its go.mod with greet's tool line, mise install. Each passes its usage values with
+# mise's own templates ({{usage.<name>}}), never shell syntax, so it runs the same under sh, cmd and PowerShell.
+# Without mise, run the commands themselves: go tool greet <command>.
+# Written by greet init: don't edit it. After upgrading greet, go tool greet init writes it again.
+
+["greet"]
+description = "Start here: what's done, and what to run next (mise run greet:show-help: every command)"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'go tool greet{% if usage.json %} --json{% endif %}'
+
+["greet:03-init"]
+description = "03. greet's files written into the repo again, after upgrading it (the first time, before these tasks: go tool greet init)"
+run = "go tool greet init"
+
+["greet:04-check"]
+description = "04. The repo's rules: greet's files current, and go.mod's tool line for greet"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'go tool greet check{% if usage.json %} --json{% endif %}'
+
+["greet:05-show"]
+description = "05. What's done, and what to run next"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'go tool greet show{% if usage.json %} --json{% endif %}'
+
+["greet:06-hello"]
+description = "06. Greet someone: the module half's greet.Hello, on the command line"
+usage = 'flag "--name <name>" help="who to greet"; flag "--shout" help="in capitals"'
+run = 'go tool greet hello{% if usage.name %} --name "{{usage.name}}"{% endif %}{% if usage.shout %} --shout{% endif %}'
+
+["greet:07-bye"]
+description = "07. Goodbye"
+run = "go tool greet bye"
+
+["greet:verify"]
+description = "What the repo's GitHub workflow runs: its setup and test tasks, then check"
+run = "go tool greet verify"
+
+["greet:template"]
+description = "The template's little app, a Go program that imports greet's module, in a repo with none yet: it never writes over a file"
+run = "go tool greet template"
+
+["greet:show-version"]
+description = "This build's version: the module version go.mod pins"
+run = "go tool greet show-version"
+
+["greet:show-help"]
+description = "Every command"
+run = "go tool greet show-help"

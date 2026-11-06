@@ -1,8 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
 
-// bye is greet bye, run by the task greet:bye. It takes no flags, so that task has no usage.
+	"github.com/joeblew999/mise-check/example/greet"
+)
+
+// bye is greet bye (07, mise run greet:07-bye). It takes no flags, so its task has no usage.
 func bye(args []string) {
-	fmt.Println("bye")
+	fmt.Println(greet.Bye())
 }

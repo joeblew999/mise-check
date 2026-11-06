@@ -1,38 +1,41 @@
-# misecheck's worked example: a mise file, the Go its tasks run, and Go that runs its tasks back by name. README.md
-# here says what each part shows. Run these here, in example/:
-#   mise run greet:hello --name you --shout   the binary's hello command (greet:build builds it first)
-#   mise run greet:test                       Go that runs these tasks back by name: the loop, end to end
-#   mise run greet:check-mise                 misecheck on this very file, the strict way
+# greet's repo's own tasks, only for working on greet: run them here, at its top (in mise-check, example/). A repo that
+# uses greet never gets this file: go tool greet init writes the template's tool half, templates/'s. Each task is named for
+# what it acts on (noun:verb):
+#   template: the template, templates/, a whole repo that runs where it is
+#     mise run template:e2e          TestWalk on it: its numbered tasks in their order, through its own mise file, each checked
+#     mise run template:check-mise   misecheck on its tasks file against greet's Go, and against the walk that runs them
+#   new-repo: a new repo, made from nothing as docs/greet/README.md says, by the walk and gone after it
+#     mise run new-repo:e2e          TestWalk on it, made at this checkout
+#   tool: greet itself, its command and its module
+#     mise run tool:test             go vet, and its Go tests (none of them walk)
+#   root: this file
+#     mise run root:check-mise       misecheck on this very file
+# The example isn't released or built on its own: it shows mise-check's Go (misecheck, walk) and a mise file together.
 
-[env]
-# greet:build puts the binary here, and the tasks run it by name, as a repo runs its own tool.
-_.path = ["{{config_root}}/bin"]
+[settings]
+# go.mod's toolchain line is the Go pin; this makes mise install honour it.
+idiomatic_version_file_enable_tools = ["go"]
 
-[tasks."greet:build"]
-description = "Build greet into bin/: Go from its source, go build ./cmd/greet"
-run = 'go build -o bin/ ./cmd/greet'
+[tasks."template:e2e"]
+description = "TestWalk on the template, templates/, where it is: its numbered tasks (greet:03-init to 07-bye) in their order, through its own mise file, each checked by what a person would see it do (walk_test.go)"
+env = { REPO_PATH = "templates" }
+run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 10m'
 
-[tasks."greet:hello"]
-description = "greet's hello command, cmd/greet/hello.go: its two flags are declared here and in its Go"
-depends = ["greet:build"]
-usage = 'flag "--name <name>" help="who to greet"; flag "--shout" help="in capitals"'
-run = 'greet hello{% if usage.name %} --name "{{usage.name}}"{% endif %}{% if usage.shout %} --shout{% endif %}'
-
-[tasks."greet:bye"]
-description = "greet's bye command, cmd/greet/bye.go: it takes nothing, so no usage"
-depends = ["greet:build"]
-run = 'greet bye'
-
-[tasks."greet:test"]
-description = "Go that runs this file's tasks back by name (greet_test.go runs mise run greet:hello): the loop, end to end"
-env = { GREET_E2E = "1" }
-run = 'go test . -run "^TestGreet$" -count=1 -v'
-
-[tasks."greet:check-mise"]
-description = "misecheck on this very file, the strict way: each task's Go there, each command of greet run by a task, each flag on both sides, and each task name greet_test.go uses a task here"
-env = { MISE_FILE = "mise.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "." }
+[tasks."template:check-mise"]
+description = "misecheck on the template's tasks file, both ways: against greet's Go (each task's command is its file, each command file is a task's, each flag on both sides) and against the walk that runs them (each task it names is one)"
+env = { MISE_FILE = "templates/.mise/tasks/greet.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "." }
 run = 'go test . -run "^TestMise$" -count=1 -v'
 
-[tasks."greet:readme"]
-description = "A task may run anything else too: it's allowed, and logged as not checked"
-run = 'echo Read README.md'
+[tasks."new-repo:e2e"]
+description = "TestWalk on a new repo, made from nothing as docs/greet/README.md says (an empty folder with its own git, go mod init, greet's tool line, go tool greet init, greet:template), at this checkout; gone after it"
+env = { REPO_PATH = "templates", E2E_STAMPED = "true" }
+run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 10m'
+
+[tasks."tool:test"]
+description = "go vet, and greet's Go tests, run for real (no cached results): none of them walk, so they need nothing"
+run = 'go vet ./... && go test -count=1 ./...'
+
+[tasks."root:check-mise"]
+description = "misecheck on this very file: each task one line, its Go there, its usage passed by name, no POSIX shell syntax"
+env = { MISE_FILE = "mise.toml" }
+run = 'go test . -run "^TestMise$" -count=1 -v'

@@ -1,39 +1,80 @@
-# The example
+# The example: a mise tool for Go repos
 
-A small repo that uses everything misecheck checks. Run these here, in `example/`:
+`greet` is a tool built the way [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is, for repos that
+are Go: its template is a whole repo that runs where it is, its `init` writes the template's files into any repo, and
+its walk runs the template's numbered tasks in their order, on the template and on a new repo made from nothing. It
+shows mise-check's two packages working with a mise file: `misecheck` holds every task to the Go it runs, and `walk`
+drives the template through its tasks. It isn't released or built on its own: copy this folder to start a real tool,
+and change what's greet's.
+
+## What a repo using the tool needs: only its Go module
+
+**mise is optional.** greet has two halves at one version, its command and its module, and one line of a repo's
+`go.mod` pins both:
 
 ```sh
-mise run greet:hello --name you --shout   # greet's hello command: HELLO, YOU
-mise run greet:test                       # Go that runs the tasks back by name: the loop, end to end
-mise run greet:check-mise                 # misecheck on this very file, the strict way
+go get -tool github.com/joeblew999/mise-check/example/cmd/greet@latest   # the tool line: command and module
+go tool greet init                                                       # greet's files (tasks, workflow, hook, skill, docs)
+go tool greet                                                            # what's done, and what to run next
 ```
 
-## What each part shows
-
-| File | What it is | What misecheck holds it to |
+| | How | Checked by |
 |---|---|---|
-| [mise.toml](mise.toml) | The interface: one task per thing to do, each one line | Every `run` and `usage` one line; no shell syntax; each flag in `usage` passed by name (`{% if usage.shout %} --shout{% endif %}`) |
-| [cmd/greet/](cmd/greet/) | The binary the tasks run, `greet`, its commands a file each: `hello.go` holds `hello`, `bye.go` holds `bye` | Each command a task runs is a file here; each file here is run by a task (`GO_LAYOUT=file`) |
-| `hello.go`'s flags | `--name`, `--shout` (`fs.String("name", …)`) | The same flags in `greet:hello`'s `usage`, no more and no fewer |
-| [greet_test.go](greet_test.go) | Go that runs the tasks back by name: `mise run greet:hello --name misecheck` | Every task name it uses is a task of mise.toml, written in full (`GO_CALLERS=.`) |
-| [mise_test.go](mise_test.go) | All a repo writes to use misecheck: `misecheck.Check(t, misecheck.FromEnv())` | Run by `greet:check-mise`, whose `env` says what to check: this very file |
-| `greet:build` | Go from its source: `go build -o bin/ ./cmd/greet` | The folder holds Go |
-| `greet:readme` | Anything else (`echo …`) | Allowed, logged as not checked |
+| The command | `go tool greet <command>` | `go.sum`: exactly the version `go.mod` pins |
+| The module a Go program imports | `import "github.com/joeblew999/mise-check/example/greet"` | `go.sum` and the compiler |
+| Go itself | `go.mod`'s `toolchain` line | Go (any Go from 1.21 downloads it) |
+| Upgrading | as any Go module: `go get -tool …/cmd/greet@latest`, then `go tool greet init` | `go tool greet check` says when greet's files are stale |
+| With mise | the same commands as tasks, numbered: `mise run greet:06-hello` runs `go tool greet hello` | misecheck, here |
 
-So it goes both ways: `greet:hello` runs Go (`greet hello`), `greet_test.go` runs `greet:hello` back, and
-`greet:check-mise`, a task of this same file, checks every one of those links.
+The command comes from the module, never a release binary: a binary's command line isn't checked when it's used, and
+a module is. A repo never gets this folder's `mise.toml`: that is only for working on greet.
+
+## Run it
+
+Here, in `example/`:
+
+```sh
+mise run template:e2e           # the walk on the template, where it is: greet:03-init to 07-bye, each checked
+mise run new-repo:e2e           # the same on a new repo, made from nothing as docs/greet/README.md says
+mise run template:check-mise    # misecheck on the template's tasks against greet's Go and the walk, both ways
+mise run root:check-mise        # misecheck on this folder's own mise.toml
+```
+
+And in the template itself, as a person in a repo with greet does: `cd templates`, then `go tool greet` (or
+`mise run greet`).
+
+## What each part is
+
+| Path | What it is | What to change when you copy it |
+|---|---|---|
+| [mise.toml](mise.toml) | The tool repo's own tasks, only for working on the tool (noun:verb): `template:e2e`, `new-repo:e2e`, `template:check-mise`, `tool:test`, `root:check-mise` | greet's name in the descriptions |
+| [cmd/greet/](cmd/greet/) | The command, `go tool greet`, one file per command, holding the function named for it: `init.go`, `check.go`, `show.go`, `hello.go`, `bye.go`, `template.go`, `verify.go`, `show_help.go`, `show_version.go` | Keep `init`, `check`, `show`, `template`, `verify`, `show-help`, `show-version`; replace `hello` and `bye` with the tool's own work |
+| [greet/](greet/) | The module half, which a Go program imports | The tool's own package |
+| [templates/](templates/) | The template: a whole repo that runs where it is, a folder of this module with no `go.mod` of its own (`go tool greet` runs here from this module's tool line) | Everything greet's |
+| `templates/.mise/tasks/greet.toml` | The numbered tasks, each one line, `go tool greet <command>`: `greet` (start here), `greet:03-init` … `greet:07-bye`, `greet:verify`, `greet:template`, `greet:show-*` | The tool's own steps, in the order a repo meets them |
+| `templates/.mise/config.toml` | Only has mise install the Go `go.mod` names | Nothing |
+| `templates/.github/workflows/greet.yml`, `.claude/`, `docs/greet/` | The repo's workflow (`mise run greet:verify`), Claude Code's hook and skill, and its docs: all written by `greet init`, never edited in a repo | greet's name |
+| `templates/main.go`, `main_test.go`, `mise.toml`, `README.md` | The template's little app, which imports the module half: `greet template` writes it into a repo with no Go program yet | The tool's own little example |
+| [templates.go](templates.go) | Embeds the template's two halves, `Tool` (init writes it) and `App` (template writes it). It's here, one level up, because the template's app is its own package | The file lists |
+| [walk_test.go](walk_test.go) | The walk: the template's numbered tasks as steps, each checked; how a person makes a new repo; `TestSteps` (the steps are exactly the numbered tasks) | The tool's own steps and checks |
+| [mise_test.go](mise_test.go) | All a repo writes to use misecheck: one line | Nothing |
+
+So it goes both ways, several levels deep: `mise run template:e2e` (this folder's `mise.toml`) runs `TestWalk`
+(`walk_test.go`), which runs the template's tasks by name (`mise run greet:06-hello`, in `templates/`), which run
+greet's Go (`go tool greet hello`, `cmd/greet/hello.go`), which is the module half (`greet.Hello`). misecheck checks
+every one of those links (`template:check-mise`, `root:check-mise`).
 
 ## Break it
 
 misecheck's own tests (`TestBroken`, in `../misecheck_test.go`) break a copy of this folder one way at a time and check
-that each is caught. Try one here and run `mise run greet:check-mise`:
+that each is caught. Try one here and run `mise run template:check-mise`:
 
-1. Rename `[tasks."greet:bye"]`: `greet_test.go` still runs `greet:bye`.
-2. Delete `cmd/greet/bye.go`: `greet:bye` still runs it.
+1. Rename `["greet:07-bye"]` in `templates/.mise/tasks/greet.toml`: `walk_test.go` still runs `greet:07-bye`.
+2. Delete `cmd/greet/bye.go`: `greet:07-bye` still runs it.
 3. Add `fs.Bool("loud", …)` to `hello.go`: no task declares `--loud`.
-4. Add `flag "--color"` to `greet:hello`'s `usage`: greet's Go has no such flag.
-5. Take `{% if usage.shout %} --shout{% endif %}` out of `greet:hello`'s run: `--shout` is declared and never passed.
-6. Write `GREETING=1 greet bye`: Windows' cmd doesn't read it.
+4. Add `flag "--color"` to `greet:06-hello`'s `usage`: greet's Go has no such flag.
+5. Take `{% if usage.shout %} --shout{% endif %}` out of `greet:06-hello`'s run: `--shout` is declared and never passed.
+6. Write `GREETING=1 go tool greet bye`: Windows' cmd doesn't read it.
 7. Spread a run over several lines: logic that belongs in Go.
 8. Add `cmd/greet/wave.go` with `func wave`: a command no task runs.
 9. Write `"greet:" + step` in Go: a task name that can't be checked.

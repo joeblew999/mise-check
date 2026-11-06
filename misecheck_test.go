@@ -84,9 +84,11 @@ func TestRunForms(t *testing.T) {
 		"go test ./e2e -run '^TestX$' -v": {{place: in("e2e")}},
 		"go test ./...":                   {{place: in()}},
 		"go vet ./... && go test ./...":   {{notGo: "go vet ./..."}, {place: in()}},
-		"go tool tool dev":                {{notGo: "go tool tool dev"}},
-		"hk check --all":                  {{notGo: "hk check --all"}},
-		"echo tool":                       {{notGo: "echo tool"}},
+		"go tool tool dev":                {{place: in("cmd", "tool", "dev.go"), binary: "tool"}},
+		"go tool tool{% if usage.json %} --json{% endif %}": {{place: in("cmd", "tool"), binary: "tool"}},
+		"go tool gsx generate":                              {{notGo: "go tool gsx generate"}},
+		"hk check --all":                                    {{notGo: "hk check --all"}},
+		"echo tool":                                         {{notGo: "echo tool"}},
 	} {
 		if got := g.runsOf(run, dir); !slices.Equal(got, want) {
 			t.Errorf("%q: %+v, want %+v", run, got, want)
@@ -96,21 +98,24 @@ func TestRunForms(t *testing.T) {
 
 // ---- The example, checked: it passes, and each way of breaking it is caught ----
 
-// example is the strict Check of example/: the mise file, greet's commands one file each, and the Go that runs its
-// tasks back by name.
+// example is the strict Check of example/, as its template:check-mise runs it: the template's tasks file (what greet
+// init writes into a repo), greet's commands one file each, and the walk that runs its tasks back by name.
 func example(dir string) Config {
 	return Config{
-		MiseFile:  filepath.Join(dir, "mise.toml"),
+		MiseFile:  filepath.Join(dir, "templates", ".mise", "tasks", "greet.toml"),
 		GoCmd:     filepath.Join(dir, "cmd"),
 		GoLayout:  "file",
 		GoCallers: dir,
 	}
 }
 
-// TestExample: example/ passes, the strict way.
+// TestExample: example/ passes, the strict way, and so does its own mise file (its root:check-mise).
 func TestExample(t *testing.T) {
 	if errs := checked(example("example")); len(errs) > 0 {
-		t.Errorf("example/ fails misecheck:\n%s", strings.Join(errs, "\n"))
+		t.Errorf("example/'s template fails misecheck:\n%s", strings.Join(errs, "\n"))
+	}
+	if errs := checked(Config{MiseFile: filepath.Join("example", "mise.toml")}); len(errs) > 0 {
+		t.Errorf("example/mise.toml fails misecheck:\n%s", strings.Join(errs, "\n"))
 	}
 }
 
@@ -123,8 +128,8 @@ func TestBroken(t *testing.T) {
 		want    string
 	}{
 		{"a task renamed, and Go still runs it by its old name",
-			edit("mise.toml", `[tasks."greet:bye"]`, `[tasks."greet:farewell"]`),
-			"names the task greet:bye, which isn't a task"},
+			edit(tasksFile, `["greet:07-bye"]`, `["greet:07-farewell"]`),
+			"names the task greet:07-bye, which isn't a task"},
 		{"a command's Go deleted, and its task still runs it",
 			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "greet", "bye.go")) },
 			"and there's none there"},
@@ -133,16 +138,16 @@ func TestBroken(t *testing.T) {
 	shout := fs.Bool(`),
 			"defines the flag --loud"},
 		{"a flag added to a task's usage, not in its Go",
-			edit("mise.toml", `flag "--shout" help="in capitals"'`, `flag "--shout" help="in capitals"; flag "--color" help="c"'`),
+			edit(tasksFile, `flag "--shout" help="in capitals"'`, `flag "--shout" help="in capitals"; flag "--color" help="c"'`),
 			"declares the flag --color"},
 		{"a flag declared, and its run doesn't pass it",
-			edit("mise.toml", `{% if usage.shout %} --shout{% endif %}`, ``),
+			edit(tasksFile, `{% if usage.shout %} --shout{% endif %}`, ``),
 			"declares the flag --shout, and its run doesn't pass it"},
 		{"POSIX shell syntax, which Windows' cmd doesn't read",
-			edit("mise.toml", `run = 'greet bye'`, `run = 'GREETING=1 greet bye'`),
+			edit(tasksFile, `run = "go tool greet bye"`, `run = "GREETING=1 go tool greet bye"`),
 			"has POSIX shell syntax"},
 		{"a run over several lines: logic that belongs in Go",
-			edit("mise.toml", `run = 'greet bye'`, "run = \"\"\"\ngreet bye\n\"\"\""),
+			edit(tasksFile, `run = "go tool greet bye"`, "run = \"\"\"\ngo tool greet bye\n\"\"\""),
 			"isn't one line"},
 		{"a command added to the binary, and no task runs it",
 			func(dir string) {
@@ -150,7 +155,7 @@ func TestBroken(t *testing.T) {
 			},
 			"is a command of greet"},
 		{"a task name glued together from pieces in Go",
-			edit("greet_test.go", `"strings"`, "\"strings\"\n)\n\nvar step = \"greet:\" + \"bye\"\n\nvar (_ = step"),
+			edit("walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar step = \"greet:\" + \"07-bye\"\n\nvar (_ = step"),
 			"builds a task name from pieces"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -180,7 +185,10 @@ func edit(file, old, new string) func(dir string) {
 	}
 }
 
-// copyTree copies the example's files into dir, leaving out what greet:build writes.
+// tasksFile is the example's template's tasks file, from the example's root: what TestBroken breaks.
+var tasksFile = filepath.Join("templates", ".mise", "tasks", "greet.toml")
+
+// copyTree copies the example's files into dir.
 func copyTree(t *testing.T, from, to string) {
 	t.Helper()
 	err := filepath.WalkDir(from, func(p string, d os.DirEntry, err error) error {

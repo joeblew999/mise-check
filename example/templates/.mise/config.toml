@@ -1,0 +1,6 @@
+# greet's tasks run go tool greet, at the version go.mod pins: the one pin. This only has mise install the Go that
+# go.mod names (its toolchain line), so a machine with no Go of its own runs them too. greet init writes this file when
+# the repo has none; from then on it's the repo's.
+
+[settings]
+idiomatic_version_file_enable_tools = ["go"]

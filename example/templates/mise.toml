@@ -1,0 +1,10 @@
+# The app's own tasks, with mise: greet's are its own file, .mise/tasks/greet.toml (go tool greet init writes it).
+# Without mise: go run . and go test ./...
+
+[tasks.start]
+description = "Run the app"
+run = "go run ."
+
+[tasks.test]
+description = "The app's own tests (greet:verify runs them, then check)"
+run = "go test ./..."

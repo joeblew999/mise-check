@@ -30,13 +30,16 @@
 //   - Go from its source: go run, go test or go build, on a folder (./cmd/mise-cloudflare), several, a whole tree
 //     (./...), or none, the folder the task runs in. Each folder must hold Go; nothing else is asked of its layout,
 //     so a binary that is one main.go fits as it is.
-//   - A built binary of GO_CMD: <binary> <command>, or <binary> alone for its main.go. Its commands are laid out the
+//   - A binary of GO_CMD: <binary> <command>, or <binary> alone for its main.go, built and on the PATH; or the same
+//     through the module's tool line, go tool <binary> <command>, which Go builds at the version go.mod pins (a repo's
+//     own, or one a repo gets from the module it imports, so go.sum and the compiler check it). Its commands are laid out the
 //     way GO_LAYOUT says: file, a file each, <GO_CMD>/<binary>/<command>.go (dashes as underscores) holding the
 //     function named for it (set_secrets.go, setSecrets); or folder, a folder each, <GO_CMD>/<binary>/<command>/.
 //     Code the commands share isn't a command and is left alone. This is the strictest: every command a task runs
 //     must be there, every command must be one a task runs, and every flag must be declared on both sides, in the
 //     usage of the tasks running the binary and in its Go (flag.Bool("yes", …)).
-//   - Anything else (hugo …, wrangler …, go vet …): logged as not checked, never failed.
+//   - Anything else (hugo …, wrangler …, go vet …, go tool of a binary that isn't GO_CMD's): logged as not checked,
+//     never failed.
 //
 // The tasks can be in a mise.toml ([tasks.…]) or in a file of tasks only (.mise/tasks/*.toml, or one a mise.toml
 // includes); GO_CMD and GO_CALLERS are each optional, so a repo checks as much as it has. A file of tasks that only run
@@ -181,11 +184,11 @@ type ran struct {
 //
 //  1. Go from its source: go run ./path, go test ./path, go build ./path → the folder path/, from dir, the folder the
 //     task runs in (./... is all of it, and no path is dir itself)
-//  2. a built binary, first after any NAME=value: <binary> <command> → by the layout, the file
-//     <cmd>/<binary>/<command>.go (dashes as underscores) or the folder <cmd>/<binary>/<command>/; with no command,
-//     the binary itself, <cmd>/<binary>/
+//  2. a built binary, first after any NAME=value: <binary> <command>, or go tool <binary> <command> (the binary from
+//     the module's tool line) → by the layout, the file <cmd>/<binary>/<command>.go (dashes as underscores) or the
+//     folder <cmd>/<binary>/<command>/; with no command, the binary itself, <cmd>/<binary>/
 //
-// Anything else is neither: go tool, go vet, shell, other programs.
+// Anything else is neither: go tool of another binary, go vet, shell, other programs.
 func (g goSide) runsOf(run, dir string) []ran {
 	var rans []ran
 	run = templateTag.ReplaceAllString(run, " ") // what mise fills in isn't a command's words
@@ -196,6 +199,10 @@ func (g goSide) runsOf(run, dir string) []ran {
 		}
 		if len(words) == 0 {
 			continue
+		}
+		// go tool <binary> <command> is the binary itself, from the module's tool line: read it as the binary.
+		if len(words) > 2 && words[0] == "go" && words[1] == "tool" && g.cmd != "" && slices.Contains(g.binaries, words[2]) {
+			words = words[2:]
 		}
 		switch {
 		case words[0] == "go" && len(words) > 1 && slices.Contains([]string{"run", "test", "build"}, words[1]):
@@ -250,7 +257,7 @@ func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 		for _, r := range g.runsOf(task.run, taskDir(file)) {
 			if r.notGo != "" {
 				notGo++
-				t.Logf("not checked: %s's task %s runs %q, which is neither form: go run|test|build ./path, or a binary of GO_CMD", file, task.name, r.notGo)
+				t.Logf("not checked: %s's task %s runs %q, which is neither form: go run|test|build ./path, or a binary of GO_CMD (itself, or go tool <binary>)", file, task.name, r.notGo)
 				continue
 			}
 			places++

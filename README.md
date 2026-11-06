@@ -4,7 +4,16 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/joeblew999/mise-check.svg)](https://pkg.go.dev/github.com/joeblew999/mise-check)
 
 A Go module that keeps a [mise](https://mise.jdx.dev) file and the Go its tasks run in sync, both ways, and every task
-runs the same on macOS, Linux and Windows. It forces one structure, and checks the shape, never what the Go does.
+runs the same on macOS, Linux and Windows. It forces one structure, and checks the shape, never what the Go does. Two
+packages:
+
+- **`misecheck`** (`github.com/joeblew999/mise-check`): the checker, below.
+- **`walk`** (`github.com/joeblew999/mise-check/walk`): the end-to-end test that drives a repo through its own mise
+  file, its numbered tasks in their order, each checked ([The walk](#the-walk)).
+
+> **A repo that uses mise-check needs only the Go module.** `go get github.com/joeblew999/mise-check`, and a test of
+> its own imports it. Nothing else: no mise from this repo, no binary, no files copied. This repo's own mise file
+> (`mise.toml`) is only for working on mise-check itself.
 
 ## Why: a control plane that tests other repos through their own mise files
 
@@ -54,10 +63,10 @@ A repo without such a test gets the same contract: its tasks and its Go stay one
 
 ## The example
 
-[example/](example/) is the same loop in miniature: a mise file, a binary whose commands are a file each, and a Go
-test that runs the tasks back by name (`greet_test.go` runs `mise run greet:hello`), as mise-cloudflare's walk does.
-It passes the strict check, and misecheck's own tests break a copy of it nine ways, one at a time, to prove each is
-caught. Start there.
+[example/](example/) is the same loop, whole and small: a tool, `greet`, built the way mise-cloudflare is, and walked
+by `walk` as mise-cloudflare's is. It's also the reference for a mise tool whose users are Go repos: copy it to start
+one. It passes the strict check, and misecheck's own tests break a copy of it nine ways, one at a time, to prove each
+is caught. Start there.
 
 ## Use it
 
@@ -102,10 +111,55 @@ Go that runs tasks names each in full (`"namespace:task"`), and every name must 
 
 The full rules are the [package documentation](https://pkg.go.dev/github.com/joeblew999/mise-check).
 
+## The walk
+
+`walk` is mise-cloudflare's end-to-end test with everything of Cloudflare's taken out: a repo's numbered tasks
+(`mise run greet:03-init`, `greet:04-check`, …) run in their order, through the repo's own mise file, as a person there
+runs them, each checked by what it should have done. A tool's repo walks its template where it is, and a new repo made
+from nothing as its README says, so every step a user takes is known to work.
+
+The tool's own test says only what's the tool's: its steps, what each checks, and how a person makes a new repo with
+it. `walk` does the rest: the repo cut off from the repo around it (its own mise only), its tasks run by name, its
+setup, the steps in order, the files a step changed, process groups and Windows' long paths. A whole walk is one value:
+
+```go
+var greetWalk = walk.Walk[*greeter]{Steps: steps, New: newRepo, Of: func(r walk.Repo) *greeter { return &greeter{r} }}
+
+func TestWalk(t *testing.T)  { greetWalk.Run(t) }
+func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
+```
+
+and a task of the tool's root mise file runs it, saying which repo: `REPO_PATH=templates` (the template where it is),
+`E2E_STAMPED=true` (a new repo made from nothing), `E2E_STAGE` (how far). The steps name their tasks in full, so
+misecheck checks every name against the tasks file (`GO_CALLERS`), and `CheckSteps` fails unless the steps are exactly
+its numbered tasks, in their order. [example/walk_test.go](example/walk_test.go) is a whole one.
+
+## The reference: a mise tool for Go repos
+
+[example/](example/) is how to build a tool that Go repos use, so that a repo using it has as little of its own to
+manage as possible. A tool built this way has two halves at one version, a command and a module, and **a repo that
+uses it needs only its Go module: mise is optional.**
+
+| A repo using the tool needs | How | Checked by |
+|---|---|---|
+| The command | `go tool greet <command>`, from one line of its `go.mod` (`go get -tool …/cmd/greet@latest`) | `go.sum`: exactly the version `go.mod` pins |
+| The module its Go imports | `import "…/example/greet"` | `go.sum` and the compiler |
+| Go itself | `go.mod`'s `toolchain` line (any Go from 1.21 downloads it) | Go |
+| Upgrading | as any Go module: `go get -tool …/cmd/greet@latest` | `go tool greet check` says when the tool's files are stale |
+| mise (optional) | its tasks, `mise run greet:<nn>-<command>`, one line each: `go tool greet <command>` | misecheck, in the tool's repo |
+
+The command comes from the module, never a release binary: a binary's command line isn't checked when it's used, and
+a module is, by `go.sum` and the compiler. The tool's repo has its template (`templates/`), a whole repo that runs
+where it is: the tool's half (`go tool greet init` writes it into a repo) and a little app that imports the module
+(`go tool greet template` writes it into a repo with no Go program yet). [example/README.md](example/README.md) says
+what each file is, and what to change when you copy it.
+
 ## This repo
 
-It checks itself as any repo does: `mise run root:check-mise`. `mise run lib:test` runs its own tests, the example's
-breakages among them, and `mise run example:check` runs the example: its strict check and its end-to-end test.
+`mise.toml` here is only for working on mise-check: a repo that uses mise-check never needs it. mise-check checks
+itself as any repo does, `mise run lib:check-mise`. `mise run lib:test` runs its own tests, the example's breakages
+among them, and `mise run example:check` runs the example through its own mise file: misecheck on both its mise files,
+then its walk on the template and on a new repo. CI runs all three on Linux, macOS and Windows.
 
 ## License
 

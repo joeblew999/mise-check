@@ -155,7 +155,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 
 | Task | What | When |
 |---|---|---|
-| `root:verify` | Everything GitHub's CI runs, the same command: every check and walk below, at once where they can | Before every push |
+| `root:verify` | Everything GitHub's CI runs, the same command: the checks at once, then the walks one after the other (they share the machine's aube store) | Before every push |
 | `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
 | `template:check-mise` | `TestMise` on the template's tasks against the binary's Go and the walk that runs them, both ways | After a change to a task or a command |
@@ -207,7 +207,7 @@ on any machine:
 
 - [ci.yml](.github/workflows/ci.yml), on every push and pull request, on Linux, macOS and Windows: `mise run
   root:verify`, the same command as on your machine: `tool:test`, `root:check-mise`, `template:check-mise`,
-  `template:e2e` then `template:e2e-update`, `new-repo:e2e` and `new-repo:e2e-update`, at once where they can.
+  then the walks one after the other (`template:e2e`, `template:e2e-update`, `new-repo:e2e`, `new-repo:e2e-update`), as they share the machine's one aube store.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
   repo made the README's way at that release, walked, on Linux, macOS and Windows.
 - [release.yml](.github/workflows/release.yml), on every change to what mise-check is (its binary, its packages, the

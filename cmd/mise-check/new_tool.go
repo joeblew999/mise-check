@@ -46,6 +46,7 @@ func (r repo) newTool(module, from string) {
 	case version == "":
 		fail(fmt.Errorf("this mise-check is a checkout's build, not a release: new-tool copies its release, or with --from <folder> a checkout"))
 	default:
+		at = "v" + strings.TrimPrefix(at, "v") // a release's version is 0.4.22; Go's is v0.4.22
 		files = fromProxy(at)
 	}
 	rename := strings.NewReplacer("joeblew999/mise-check", owner+"/"+name, "mise-check", name)
@@ -65,7 +66,12 @@ func (r repo) newTool(module, from string) {
 		must(os.WriteFile(to, b, 0o644))
 	}
 	fmt.Printf("✓ %s: mise-check %s copied and renamed, its packages (misecheck, walk) imported instead\n", module, cmp.Or(at, "(a checkout, "+from+")"))
-	trustConfig(r.dir, "mise.toml")
+	// Every mise file it wrote, trusted, as init trusts its own: the root's, and the template's.
+	for p := range files {
+		if p = rename.Replace(p); !droppedFile(p) && (path.Base(p) == "mise.toml" || path.Base(p) == "config.toml" && path.Base(path.Dir(p)) == ".mise") {
+			trustConfig(r.dir, p)
+		}
+	}
 	// The packages, at this release (both pins at one release), or the newest, for a checkout.
 	r.runOwnMise(r.dir, "exec", "--", "go", "get", selfRepo+"@"+cmp.Or(at, "latest"))
 	r.runOwnMise(r.dir, "exec", "--", "go", "mod", "tidy")

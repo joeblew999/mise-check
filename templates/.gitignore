@@ -4,3 +4,5 @@
 .DS_Store
 # mise's override for one machine: mise-check's own checkout pins its build there (local)
 .mise/config.local.toml
+# Installed packages
+node_modules/

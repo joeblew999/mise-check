@@ -24,8 +24,8 @@ description = "05. What's done for this repo, and what to run next"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show{% if usage.json %} --json{% endif %}'
 
-["mise-check:06-update"]
-description = "06. Every pin at its newest release, in one go: its mise tools, its packages (with aube), and in every go.mod its Go (the toolchain line) and Go modules, majors too, their imports rewritten (go-mod-upgrade). It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them. --only, --pick and --no-major for a say in it"
+["mise-check:update"]
+description = "Every pin at its newest release, in one go: its mise tools, its packages (with aube), and in every go.mod its Go (the toolchain line) and Go modules, majors too, their imports rewritten (go-mod-upgrade). It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them. --only, --pick and --no-major for a say in it"
 usage = 'flag "--only <kind>" help="only these pins: mise (its tools), packages (aube) or go (Go and its modules)" { choices "mise" "packages" "go" }; flag "--pick" help="ask for each one, with each tool's own picker"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
 run = 'mise-check update{% if usage.only %} --only {{usage.only}}{% endif %}{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
 

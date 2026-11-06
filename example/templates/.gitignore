@@ -1,5 +1,0 @@
-# What builds and test runs leave
-*.test
-*.out
-# mise's override for one machine, never committed
-.mise/config.local.toml

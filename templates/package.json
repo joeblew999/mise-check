@@ -1,0 +1,8 @@
+{
+  "name": "mise-check-template",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "4.155.0"
+  }
+}

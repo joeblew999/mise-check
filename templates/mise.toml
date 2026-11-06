@@ -1,11 +1,21 @@
-# The app's own tasks. mise-check's are its own file, .mise/tasks/mise-check.toml, and its pin .mise/config.toml, which
-# mise-check init writes (then mise run mise-check shows the way).
+# The repo's own tools and tasks: node and aube, which install its packages (mise run setup), and its Go program.
+# mise-check's tasks are its own file, .mise/tasks/mise-check.toml, and its pin .mise/config.toml, which mise-check init
+# writes (then mise run mise-check shows the way). mise run mise-check:update moves every pin here, in package.json and
+# in go.mod.
 
 [settings]
 # go.mod's toolchain line is the Go pin; this makes mise install honour it.
 idiomatic_version_file_enable_tools = ["go"]
-# mise 2026.10 fails to install a tool while it fetches its agent skill (a 404); it isn't needed.
+# mise 2026.10 fails to install aube while it fetches its agent skill (a 404); it isn't needed.
 skills.fetch = false
+
+[tools]
+node = "26.13.0"   # runs the packages
+aube = { version = "2.8.4", workflow = ["release-plz.yml@refs/heads/main", "release.yml@refs/heads/main"] }     # installs the packages from package.json
+
+[tasks.setup]
+description = "Install the pinned packages"
+run = "aube install"
 
 [tasks.start]
 description = "Run the app"

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/joeblew999/mise-check/templates"
 )
 
-// template is mise-check template: the template's little app, a Go program, written into a repo with no Go program
+// template is mise-check template: the template's little app, a Go program with its go.mod (go mod init, named for
+// the repo's folder) and the packages it pins (package.json, its lockfile), written into a repo with no Go program
 // yet (no main.go, nor the template's app/main.go), so the repo runs straight away. It never writes over a file: a
 // repo with a program of its own gets none of it, and a mise.toml of the repo's own is left as it is, with what to
 // add. README.md, the repo's front page, goes in whenever the repo has none, under the repo's name.
@@ -26,9 +28,21 @@ func (r repo) template() {
 		fmt.Println("✓ the repo has a Go program of its own (main.go, or app/main.go): none of the template's written, its mise.toml included")
 		return
 	}
-	for _, f := range []string{"app/main.go", "app/main_test.go"} {
+	for _, f := range []string{"app/main.go", "app/main_test.go", "package.json", "pnpm-lock.yaml"} {
+		if r.exists(f) {
+			fmt.Printf("✓ %s is the repo's own: left as it is\n", f)
+			continue
+		}
 		b, _ := fs.ReadFile(templates.App, f)
-		writeFile(filepath.Join(r.dir, filepath.FromSlash(f)), b)
+		writeFile(filepath.Join(r.dir, filepath.FromSlash(f)), bytes.ReplaceAll(b, []byte(templates.AppName), []byte(name)))
+	}
+	if r.exists("go.mod") {
+		fmt.Println("✓ go.mod is the repo's own: left as it is")
+	} else {
+		fmt.Println("$ go mod init " + name)
+		cmd := exec.Command("go", "mod", "init", name)
+		cmd.Dir, cmd.Stdout, cmd.Stderr = r.dir, os.Stdout, os.Stderr
+		must(cmd.Run())
 	}
 	tasks, _ := fs.ReadFile(templates.App, "mise.toml")
 	if r.exists("mise.toml") {

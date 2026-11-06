@@ -4,10 +4,7 @@ go 1.26.6
 
 toolchain go1.27.3
 
-tool (
-	github.com/joeblew999/mise-check/example/cmd/greet
-	github.com/oligot/go-mod-upgrade
-)
+tool github.com/oligot/go-mod-upgrade
 
 require (
 	charm.land/bubbles/v2 v2.0.0 // indirect

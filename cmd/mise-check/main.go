@@ -24,10 +24,10 @@ The steps, in order (mise run mise-check says which is next):
   mise run mise-check:03-init     mise-check's files written into the repo (again, after upgrading)
   mise run mise-check:04-check    the repo's rules: mise-check's files current, its pin
   mise run mise-check:05-show     what's done, and what to run next (mise run mise-check, too)
-  mise run mise-check:06-update   every pin at its newest release: mise's tools, packages, Go, Go modules (majors too);
-                                  --only mise|packages|go, --pick (ask for each), --no-major
 
 And:
+  mise run mise-check:update         every pin at its newest release: mise's tools, packages (aube), Go and Go modules,
+                                     majors too; --only mise|packages|go, --pick (ask for each), --no-major
   mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
   mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
   mise run mise-check:show-version   this build's version
@@ -65,7 +65,7 @@ func main() {
 		r.check(*jsonOut)
 	case "update":
 		if inCI() {
-			fail(errors.New("in CI update doesn't run: CI only checks the repo, and update changes its pins; run mise run mise-check:06-update on your machine, then mise run mise-check:verify"))
+			fail(errors.New("in CI update doesn't run: CI only checks the repo, and update changes its pins; run mise run mise-check:update on your machine, then mise run mise-check:verify"))
 		}
 		r.update(updates{only: *only, pick: *pick, noMajor: *noMajor})
 	case "verify":

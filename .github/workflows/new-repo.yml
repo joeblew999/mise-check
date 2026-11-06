@@ -1,0 +1,71 @@
+# A new repo on each of the three operating systems, from the release just made: the walk on a new repo made the
+# README's way (an empty folder, mise-check init at the new tag, then mise-check:template), its numbered tasks each
+# checked: mise run new-repo:e2e --version <tag>. It runs after the release run
+# has passed, so releases stay as fast as before, and by hand for any release. Shell steps only, as ci.yml.
+name: new-repo
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The release to try: v0.5.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  new-repo:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # mise's GitHub downloads
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # gh, which fetches mise itself on Windows
+      MISE_YES: "1"
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      INPUT_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out the release's commit, with its tags (no actions/checkout)
+        run: |
+          git init -q .
+          git fetch -q --tags --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$SHA"
+          git checkout -q --detach FETCH_HEAD
+          git log --oneline -1
+
+      - name: The release to try (the input, or the commit's own tag)
+        run: |
+          v="${INPUT_VERSION:-$(git describe --tags --exact-match --match 'v*' HEAD)}"
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "trying $v on $RUNNER_OS"
+
+      - name: mise and the pinned tools (mise.run, or mise's own Windows build)
+        run: |
+          native() { if [ "$RUNNER_OS" = Windows ]; then cygpath -w "$1"; else echo "$1"; fi; }
+          mkdir -p "$HOME/.local/bin"
+          native "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "MISE_TRUSTED_CONFIG_PATHS=$(native "$PWD")" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = Windows ]; then
+            tag=$(gh release view -R jdx/mise --json tagName -q .tagName)
+            curl -fsSL -o "$HOME/.local/bin/mise.exe" "https://github.com/jdx/mise/releases/download/$tag/mise-$tag-windows-x64.exe"
+          else
+            curl -fsSL https://mise.run | MISE_QUIET=1 sh
+          fi
+          export PATH="$HOME/.local/bin:$PATH" MISE_TRUSTED_CONFIG_PATHS="$(native "$PWD")"
+          mise --version
+          mise install
+
+      # The new repo's tasks run in each OS's own shell (cmd on Windows): they have no shell syntax. --skip-deps: the
+      # release is what's tried, not a build of this checkout (tool:install).
+      - name: A new repo, made the README's way at the release, walked (mise run new-repo:e2e --version)
+        run: mise run --skip-deps new-repo:e2e --version "$VERSION"

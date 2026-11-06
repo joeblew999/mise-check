@@ -25,7 +25,7 @@ func (r repo) show(jsonOut bool) {
 	case !s.App:
 		s.Next = "mise run mise-check:template"
 	default:
-		s.Next = "mise run mise-check:06-update"
+		s.Next = "mise run mise-check:update"
 	}
 	if jsonOut {
 		emit(s)
@@ -36,7 +36,7 @@ func (r repo) show(jsonOut bool) {
 	fmt.Printf("%s 03-init    mise-check's files, as this version writes them\n", mark[!anyHas(s.Problems, "03-init")])
 	fmt.Printf("%s 04-check   the repo's rules\n", mark[len(s.Problems) == 0])
 	fmt.Printf("%s app        a Go program of the repo's own (or the template's: mise run mise-check:template)\n", mark[s.App])
-	fmt.Println("· 06-update  every pin at its newest release, whenever you want them moved")
+	fmt.Println("· update  every pin at its newest release, whenever you want them moved")
 	for _, p := range s.Problems {
 		fmt.Println("  FAIL " + p)
 	}

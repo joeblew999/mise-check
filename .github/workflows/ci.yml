@@ -1,5 +1,5 @@
-# mise-check's CI: its own tests, itself on its own mise file, and the example (misecheck on both its mise files, then
-# its walk on the template where it is and on a new repo made from nothing), on Linux, macOS and Windows side by side
+# mise-check's CI: its own tests, itself on its own mise file, and its template (misecheck on its tasks, then the walk
+# on the template where it is and on a new repo made from nothing, and update moving old pins of every kind), on Linux, macOS and Windows side by side
 # (the point of it is that tasks run the same everywhere). Shell steps only, as mise-cloudflare's: no JavaScript actions.
 name: ci
 
@@ -62,7 +62,9 @@ jobs:
           mise run lib:test
           mise run lib:check-mise
 
-      - name: The example, through its own mise file, and its walk on the template and on a new repo (mise run example:check)
+      - name: misecheck on the template's tasks, then the walk on the template and on a new repo, and update on old pins of every kind (mise run template:check-mise, template:e2e, new-repo:e2e, new-repo:e2e-update)
         run: |
-          mise trust example
-          mise run example:check
+          mise run template:check-mise
+          mise run template:e2e
+          mise run new-repo:e2e
+          mise run new-repo:e2e-update

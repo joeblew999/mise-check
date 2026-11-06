@@ -26,15 +26,15 @@ A repo with Go of its own already skips `go mod init` and `mise-check:template` 
 | `mise run mise-check:03-init` | mise-check's files written into the repo again, after upgrading it |
 | `mise run mise-check:04-check` | the repo's rules: init's files current, `.mise/config.toml` pinning mise-check |
 | `mise run mise-check:05-show` | what's done, and what to run next (`mise run mise-check` too) |
-| `mise run mise-check:06-update` | every pin at its newest release, in one go |
+| `mise run mise-check:update` | every pin at its newest release, in one go |
 
 And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs on GitHub: the repo's own `setup` and
 `test` tasks if it has them, then check), `mise run mise-check:template`, `mise run mise-check:show-version`,
 `mise run mise-check:show-help`.
 
-## Upgrading everything: 06-update
+## Upgrading everything: update
 
-`mise run mise-check:06-update` moves every pin the repo has of its own, each with its own tool, and mise reads no
+`mise run mise-check:update` moves every pin the repo has of its own, each with its own tool, and mise reads no
 parent folder's config, so nothing outside the repo moves:
 
 1. mise's tools, in the repo's mise files: `mise upgrade --bump --local`

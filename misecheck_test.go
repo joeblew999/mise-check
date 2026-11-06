@@ -98,29 +98,30 @@ func TestRunForms(t *testing.T) {
 
 // ---- The example, checked: it passes, and each way of breaking it is caught ----
 
-// example is the strict Check of example/, as its template:check-mise runs it: the template's tasks file (what greet
-// init writes into a repo), greet's commands one file each, and the walk that runs its tasks back by name.
-func example(dir string) Config {
+// ours is mise-check's own template checked the strict way, in a copy at dir (or this checkout, "."): its tasks file
+// against the binary's Go (cmd/mise-check) and against the walk that runs them (e2e/).
+func ours(dir string) Config {
 	return Config{
-		MiseFile:  filepath.Join(dir, "templates", ".mise", "tasks", "greet.toml"),
+		MiseFile:  filepath.Join(dir, tasksFile),
 		GoCmd:     filepath.Join(dir, "cmd"),
 		GoLayout:  "file",
-		GoCallers: dir,
+		GoCallers: filepath.Join(dir, "e2e"),
 	}
 }
 
-// TestExample: example/ passes, the strict way, and so does its own mise file (its root:check-mise).
-func TestExample(t *testing.T) {
-	if errs := checked(example("example")); len(errs) > 0 {
-		t.Errorf("example/'s template fails misecheck:\n%s", strings.Join(errs, "\n"))
+// TestTemplate: mise-check's own template passes, the strict way, and so does this repo's own mise file (its
+// lib:check-mise).
+func TestTemplate(t *testing.T) {
+	if errs := checked(ours(".")); len(errs) > 0 {
+		t.Errorf("templates/'s tasks fail misecheck:\n%s", strings.Join(errs, "\n"))
 	}
-	if errs := checked(Config{MiseFile: filepath.Join("example", "mise.toml")}); len(errs) > 0 {
-		t.Errorf("example/mise.toml fails misecheck:\n%s", strings.Join(errs, "\n"))
+	if errs := checked(Config{MiseFile: "mise.toml"}); len(errs) > 0 {
+		t.Errorf("mise.toml fails misecheck:\n%s", strings.Join(errs, "\n"))
 	}
 }
 
-// TestBroken: a copy of example/, broken one way at a time, each the way a mise file and its Go drift apart; misecheck
-// says so, each time.
+// TestBroken: a copy of mise-check's own template, its binary and its walk, broken one way at a time, each the way a
+// mise file and its Go drift apart; misecheck says so, each time.
 func TestBroken(t *testing.T) {
 	for _, c := range []struct {
 		name    string
@@ -128,44 +129,44 @@ func TestBroken(t *testing.T) {
 		want    string
 	}{
 		{"a task renamed, and Go still runs it by its old name",
-			edit(tasksFile, `["greet:07-bye"]`, `["greet:07-farewell"]`),
-			"names the task greet:07-bye, which isn't a task"},
+			edit(tasksFile, `:05-show"]`, `:05-view"]`),
+			"05-show, which isn't a task"},
 		{"a command's Go deleted, and its task still runs it",
-			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "greet", "bye.go")) },
+			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "mise-check", "show_version.go")) },
 			"and there's none there"},
 		{"a flag added in Go, not in its task's usage",
-			edit(filepath.Join("cmd", "greet", "hello.go"), `shout := fs.Bool(`, `fs.Bool("loud", false, "")
-	shout := fs.Bool(`),
+			edit(filepath.Join("cmd", "mise-check", "main.go"), `	pick := flags.Bool(`, `	flags.Bool("loud", false, "")
+	pick := flags.Bool(`),
 			"defines the flag --loud"},
 		{"a flag added to a task's usage, not in its Go",
-			edit(tasksFile, `flag "--shout" help="in capitals"'`, `flag "--shout" help="in capitals"; flag "--color" help="c"'`),
+			edit(tasksFile, `flag "--pick" help="ask for each one, with each tool's own picker";`, `flag "--pick" help="ask for each one, with each tool's own picker"; flag "--color" help="c";`),
 			"declares the flag --color"},
 		{"a flag declared, and its run doesn't pass it",
-			edit(tasksFile, `{% if usage.shout %} --shout{% endif %}`, ``),
-			"declares the flag --shout, and its run doesn't pass it"},
+			edit(tasksFile, `{% if usage.pick %} --pick{% endif %}`, ``),
+			"declares the flag --pick, and its run doesn't pass it"},
 		{"POSIX shell syntax, which Windows' cmd doesn't read",
-			edit(tasksFile, `run = "go tool greet bye"`, `run = "GREETING=1 go tool greet bye"`),
+			edit(tasksFile, `run = "mise-check show-version"`, `run = "GREETING=1 mise-check show-version"`),
 			"has POSIX shell syntax"},
 		{"a run over several lines: logic that belongs in Go",
-			edit(tasksFile, `run = "go tool greet bye"`, "run = \"\"\"\ngo tool greet bye\n\"\"\""),
+			edit(tasksFile, `run = "mise-check show-version"`, "run = \"\"\"\nmise-check show-version\n\"\"\""),
 			"isn't one line"},
 		{"a command added to the binary, and no task runs it",
 			func(dir string) {
-				os.WriteFile(filepath.Join(dir, "cmd", "greet", "wave.go"), []byte("package main\n\nfunc wave(args []string) {}\n"), 0o644)
+				os.WriteFile(filepath.Join(dir, "cmd", "mise-check", "wave.go"), []byte("package main\n\nfunc wave(args []string) {}\n"), 0o644)
 			},
-			"is a command of greet"},
+			"is a command of mise-check"},
 		{"a task name glued together from pieces in Go",
-			edit("walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar step = \"greet:\" + \"07-bye\"\n\nvar (_ = step"),
+			edit(filepath.Join("e2e", "walk_test.go"), `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"05-show\"\n\nvar (_ = glued"),
 			"builds a task name from pieces"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dir := t.TempDir()
-			copyTree(t, "example", dir)
-			if errs := checked(example(dir)); len(errs) > 0 {
+			copyOurs(t, dir)
+			if errs := checked(ours(dir)); len(errs) > 0 {
 				t.Fatalf("the copy fails before it's broken:\n%s", strings.Join(errs, "\n"))
 			}
 			c.breakIt(dir)
-			errs := checked(example(dir))
+			errs := checked(ours(dir))
 			if !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, c.want) }) {
 				t.Errorf("not caught: want an error with %q, got:\n%s", c.want, strings.Join(errs, "\n"))
 			}
@@ -185,10 +186,18 @@ func edit(file, old, new string) func(dir string) {
 	}
 }
 
-// tasksFile is the example's template's tasks file, from the example's root: what TestBroken breaks.
-var tasksFile = filepath.Join("templates", ".mise", "tasks", "greet.toml")
+// tasksFile is the template's tasks file, from the repo's root: what TestBroken breaks.
+var tasksFile = filepath.Join("templates", ".mise", "tasks", "mise-check.toml")
 
-// copyTree copies the example's files into dir.
+// copyOurs copies what ours checks, the binary's Go, the template and the walk, into dir.
+func copyOurs(t *testing.T, dir string) {
+	t.Helper()
+	for _, f := range []string{"cmd", "templates", "e2e"} {
+		copyTree(t, f, filepath.Join(dir, f))
+	}
+}
+
+// copyTree copies a folder of this checkout into to.
 func copyTree(t *testing.T, from, to string) {
 	t.Helper()
 	err := filepath.WalkDir(from, func(p string, d os.DirEntry, err error) error {
@@ -197,9 +206,6 @@ func copyTree(t *testing.T, from, to string) {
 		}
 		rel, _ := filepath.Rel(from, p)
 		if d.IsDir() {
-			if rel == "bin" {
-				return filepath.SkipDir
-			}
 			return os.MkdirAll(filepath.Join(to, rel), 0o755)
 		}
 		b, err := os.ReadFile(p)
@@ -261,7 +267,7 @@ func TestToolTasks(t *testing.T) {
 		t.Errorf("a tool task with POSIX shell syntax should fail; got:\n%s", strings.Join(errs, "\n"))
 	}
 	write("hugo server --bind 0.0.0.0")
-	copyTree(t, "example", dir)
+	copyOurs(t, dir)
 	withCmd := Config{MiseFile: file, GoCmd: filepath.Join(dir, "cmd"), GoLayout: "file"}
 	if errs := checked(withCmd); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "runs Go, in either form") }) {
 		t.Errorf("given GO_CMD, tasks that run no Go should fail; got:\n%s", strings.Join(errs, "\n"))
@@ -270,21 +276,21 @@ func TestToolTasks(t *testing.T) {
 
 func TestBinaries(t *testing.T) {
 	dir := t.TempDir()
-	copyTree(t, "example", dir)
+	copyOurs(t, dir)
 	os.MkdirAll(filepath.Join(dir, "cmd", "other"), 0o755)
 	os.WriteFile(filepath.Join(dir, "cmd", "other", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644)
 
-	all := example(dir)
+	all := ours(dir)
 	if errs := checked(all); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "is a command of other") }) {
 		t.Errorf("without GO_BINARIES, a binary no task runs should fail; got:\n%s", strings.Join(errs, "\n"))
 	}
-	greet := example(dir)
-	greet.GoBinaries = "greet"
-	if errs := checked(greet); len(errs) > 0 {
-		t.Errorf("GO_BINARIES=greet should leave other alone; got:\n%s", strings.Join(errs, "\n"))
+	mc := ours(dir)
+	mc.GoBinaries = "mise-check"
+	if errs := checked(mc); len(errs) > 0 {
+		t.Errorf("GO_BINARIES=mise-check should leave other alone; got:\n%s", strings.Join(errs, "\n"))
 	}
-	wrong := example(dir)
-	wrong.GoBinaries = "greet,nope"
+	wrong := ours(dir)
+	wrong.GoBinaries = "mise-check,nope"
 	if errs := checked(wrong); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "GO_BINARIES names nope") }) {
 		t.Errorf("GO_BINARIES naming no binary should fail; got:\n%s", strings.Join(errs, "\n"))
 	}

@@ -1,0 +1,16 @@
+# The app's own tasks. mise-check's are its own file, .mise/tasks/mise-check.toml, and its pin .mise/config.toml, which
+# mise-check init writes (then mise run mise-check shows the way).
+
+[settings]
+# go.mod's toolchain line is the Go pin; this makes mise install honour it.
+idiomatic_version_file_enable_tools = ["go"]
+# mise 2026.10 fails to install a tool while it fetches its agent skill (a 404); it isn't needed.
+skills.fetch = false
+
+[tasks.start]
+description = "Run the app"
+run = "go run ./app"
+
+[tasks.test]
+description = "The app's own tests (mise-check:verify runs them, then check)"
+run = "go test ./..."

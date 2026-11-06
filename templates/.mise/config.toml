@@ -1,0 +1,7 @@
+# mise-check for this repo, from its GitHub releases: mise install gets it. mise-check init writes this file when the
+# repo has none, pinning exactly the release that ran it (here in the template it's latest); from then on the pin is the
+# repo's (mise run mise-check:06-update moves it). A .mise/config.local.toml beside it, never committed, overrides it on
+# one machine: mise-check's own checkout pins its build there (local).
+
+[tools]
+"github:joeblew999/mise-check" = "latest"

@@ -1,0 +1,47 @@
+# This repo's pins and mise tasks, with mise-check. Start with: mise run mise-check (what's done, and what to run next).
+# One task per command, numbered in the order a repo meets them: mise run mise-check:<nn>-<command> runs
+# mise-check <command>. Steps 00 to 02 come before these tasks: the repo's git, mise install, its own setup.
+# Each passes its usage values with mise's own templates ({{usage.<name>}}), never shell syntax, so it runs the same
+# under sh, cmd and PowerShell.
+# Written by mise-check (github.com/joeblew999/mise-check): don't edit it. .mise/config.toml pins its version.
+
+["mise-check"]
+description = "Start here: what's done for this repo, and what to run next (mise run mise-check:show-help: every command)"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check{% if usage.json %} --json{% endif %}'
+
+["mise-check:03-init"]
+description = "03. mise-check's files written into the repo again, after upgrading it (the first time, before these tasks: mise exec github:joeblew999/mise-check@latest -- mise-check init)"
+run = "mise-check init"
+
+["mise-check:04-check"]
+description = "04. The repo's rules: init's files current, and .mise/config.toml pinning mise-check"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check check{% if usage.json %} --json{% endif %}'
+
+["mise-check:05-show"]
+description = "05. What's done for this repo, and what to run next"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check show{% if usage.json %} --json{% endif %}'
+
+["mise-check:06-update"]
+description = "06. Every pin at its newest release, in one go: its mise tools, its packages (with aube), and in every go.mod its Go (the toolchain line) and Go modules, majors too, their imports rewritten (go-mod-upgrade). It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them. --only, --pick and --no-major for a say in it"
+usage = 'flag "--only <kind>" help="only these pins: mise (its tools), packages (aube) or go (Go and its modules)" { choices "mise" "packages" "go" }; flag "--pick" help="ask for each one, with each tool's own picker"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
+run = 'mise-check update{% if usage.only %} --only {{usage.only}}{% endif %}{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
+
+
+["mise-check:verify"]
+description = "What the repo's GitHub workflow runs: its own setup and test tasks, if it has them, then check. The same here as on GitHub"
+run = "mise-check verify"
+
+["mise-check:template"]
+description = "The template's little app, in a repo with no Go program yet: app/, the mise.toml that runs and tests it, and README.md named for the repo's folder. It never writes over a file"
+run = "mise-check template"
+
+["mise-check:show-version"]
+description = "This mise-check's version"
+run = "mise-check show-version"
+
+["mise-check:show-help"]
+description = "Every command"
+run = "mise-check show-help"

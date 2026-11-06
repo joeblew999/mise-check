@@ -106,7 +106,7 @@ func ours(dir string) Config {
 		GoCmd:     filepath.Join(dir, "cmd"),
 		GoLayout:  "file",
 		GoCallers: dir,
-		Skill:     filepath.Join(dir, "templates", ".claude", "skills", "mise-check", "SKILL.md"),
+		Skills:    []string{filepath.Join(dir, "templates", ".claude", "skills", "mise-check", "SKILL.md"), filepath.Join(dir, "templates", "docs", "mise-check", "README.md")},
 	}
 }
 

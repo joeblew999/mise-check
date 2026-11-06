@@ -96,9 +96,10 @@ type Config struct {
 	// GO_BINARIES: which binaries of GoCmd to hold to the strict way, comma-separated (optional; empty, all of them).
 	// For a repo taking it up one binary at a time: the others are left alone, as anything else a task runs is.
 	GoBinaries string
-	// SKILL_FILE: the agent skill of these tasks (a SKILL.md), held to them both ways: every task of the mise file is
-	// named in it, and every task it names, in full ("namespace:task"), is one (optional).
-	Skill string
+	// SKILL_FILE: the agent skill of these tasks (a SKILL.md), and any other page that must cover them (the tool's docs),
+	// comma-separated, each held to them both ways: every task and flag of the mise file is named in it, and every task
+	// it names, in full ("namespace:task"), is one (optional).
+	Skills []string
 }
 
 // FromEnv is the Config the environment says: MISE_FILE, GO_CMD, GO_LAYOUT, GO_CALLERS and GO_BINARIES.
@@ -109,7 +110,7 @@ func FromEnv() Config {
 		GoLayout:   os.Getenv("GO_LAYOUT"),
 		GoCallers:  os.Getenv("GO_CALLERS"),
 		GoBinaries: os.Getenv("GO_BINARIES"),
-		Skill:      os.Getenv("SKILL_FILE"),
+		Skills:     splitList(os.Getenv("SKILL_FILE")),
 	}
 }
 
@@ -163,8 +164,8 @@ func Check(t testing.TB, c Config) {
 		checkGoToMise(t, file, tasks, g)
 	}
 	checkUsage(t, file, tasks, g)
-	if c.Skill != "" {
-		checkSkill(t, file, tasks, c.Skill)
+	for _, skill := range c.Skills {
+		checkSkill(t, file, tasks, skill)
 	}
 	if callers == "" {
 		t.Logf("Go → mise: no GO_CALLERS, so no Go that runs %s by name is checked", file)
@@ -253,6 +254,17 @@ func (g goSide) binaryAt(place string) string {
 		}
 	}
 	return ""
+}
+
+// splitList is a comma-separated list of files, as an env variable gives it: none for "".
+func splitList(s string) []string {
+	var out []string
+	for _, f := range strings.Split(s, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // CheckSkills holds every agent skill of the repo at dir to the tasks it's for, as checkSkill does one: a skill in

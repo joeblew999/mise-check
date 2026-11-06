@@ -22,7 +22,7 @@ runs mise-check <command>.
 
 The repo (mise run mise-check says what to run next):
   mise run mise-check:init               mise-check's files written into the repo (again, after upgrading)
-  mise run mise-check:check              the repo's rules: its mise files by misecheck, mise-check's files current, its pin
+  mise run mise-check:check              the repo's rules: its mise files by misecheck, its skills, mise-check's files, its pin
   mise run mise-check:show               what's done, and what to run next (mise run mise-check, too)
 
 The updates, each pin at its newest release (--no-major: no major moves):

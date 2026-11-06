@@ -19,7 +19,7 @@ Each runs the mise-check command of its name (`mise run mise-check:check` runs `
 |---|---|---|
 | `mise run mise-check` | first, and whenever you're unsure | what's done for the repo, and what to run next |
 | `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, this skill, the docs, the hook |
-| `mise run mise-check:check` | after any change to a mise file | the repo's rules: its mise files by misecheck (below), mise-check's files current, its pin |
+| `mise run mise-check:check` | after any change to a mise file or a skill | the repo's rules: its mise files by misecheck and its skills against their tasks (below), mise-check's files current, its pin |
 | `mise run mise-check:show` | to see where the repo is | the same as `mise run mise-check` |
 | `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's `setup` and `test`, then check |
 | `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order |
@@ -61,7 +61,8 @@ file and everything around it, both ways, so nothing drifts:
 - **Tasks ↔ this skill (`SKILL_FILE`):** every task and every flag is named in the skill, and every task the skill
   names is a task.
 
-`mise run mise-check:check` runs the first of these on the repo's own `mise.toml` and `.mise/tasks/*.toml`, with no
+`mise run mise-check:check` runs the first of these on the repo's own `mise.toml` and `.mise/tasks/*.toml`, and the
+last on every skill of the repo (`.claude/skills/<namespace>/SKILL.md` against the tasks of `<namespace>`), with no
 code of the repo's own. The strict ones, for a repo with a binary of its own, are a test of the repo's:
 
 ```go
@@ -69,7 +70,7 @@ func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }
 ```
 
 run by a task whose `env` says what to check (`MISE_FILE`, and `GO_CMD`, `GO_LAYOUT`, `GO_CALLERS`, `GO_BINARIES`,
-`SKILL_FILE` as it has them):
+`SKILL_FILE` as it has them; `misecheck.CheckSkills(t, ".")` holds every skill, as `check` does):
 
 ```toml
 [tasks."template:check-mise"]

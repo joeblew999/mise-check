@@ -14,7 +14,7 @@ description = "mise-check's files written into the repo again, after upgrading i
 run = "mise-check init"
 
 ["mise-check:check"]
-description = "The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), init's files current, and .mise/config.toml pinning mise-check"
+description = "The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), every skill against its tasks (.claude/skills/<namespace>/SKILL.md names every task and flag of <namespace>, and only tasks there are), init's files current, and .mise/config.toml pinning mise-check"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check check{% if usage.json %} --json{% endif %}'
 

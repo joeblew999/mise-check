@@ -26,7 +26,7 @@ code of its own skips `mise-check:template`, which never writes over a file anyw
 | Task | What |
 |---|---|
 | `mise run mise-check:init` | mise-check's files written into the repo again, after upgrading it |
-| `mise run mise-check:check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), init's files current, `.mise/config.toml` pinning mise-check |
+| `mise run mise-check:check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), every skill against its tasks (`.claude/skills/<namespace>/SKILL.md` names every task and flag of `<namespace>`, and only tasks there are), init's files current, `.mise/config.toml` pinning mise-check |
 | `mise run mise-check:show` | what's done, and what to run next (`mise run mise-check` too) |
 
 

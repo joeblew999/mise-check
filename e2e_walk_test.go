@@ -2,8 +2,8 @@
 // package misecheck is the folder's own), on its own walk package (github.com/joeblew999/mise-check/walk), as
 // mise-cloudflare's is: the tasks a repo meets in turn, through the repo's own mise file, on the template where it is
 // (mise run template:e2e) and on a new repo made from nothing as docs/mise-check/README.md says (mise run
-// new-repo:e2e); and update on a new repo given old pins of every kind, each moved (mise run new-repo:e2e-update).
-// Without REPO_PATH every test here skips, so go test ./... never walks.
+// new-repo:e2e); and update on the template and a new repo given old pins of every kind, each moved (mise run
+// template:e2e-update, new-repo:e2e-update). Each runs only when its task names it, so go test ./... never walks.
 package misecheck_test
 
 import (
@@ -24,12 +24,13 @@ import (
 // show, each checked by what a person would see it do.
 var miseCheckWalk = walk.Walk[*walker]{Steps: steps, New: newRepo, Prepare: withGo, Of: func(r walk.Repo) *walker { return &walker{r} }}
 
-func TestWalk(t *testing.T) { miseCheckWalk.Run(t) }
+func TestWalkTemplate(t *testing.T) { miseCheckWalk.Template(t, "templates") }
+func TestWalkNewRepo(t *testing.T)  { miseCheckWalk.NewRepo(t) }
 
 // walker is mise-check's walk of a repo: what each step's Check is given.
 type walker struct{ walk.Repo }
 
-// steps are the tasks a repo meets in turn, each checked; misecheck (GO_CALLERS) checks each name is a task.
+// steps are the tasks a repo meets in turn, each checked; misecheck (GoCallers) checks each name is a task.
 var steps = []walk.Step[*walker]{
 	{Task: "mise-check:init", Check: func(w *walker) {
 		before := w.Snapshot("node_modules")
@@ -92,35 +93,39 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	return n
 }
 
-// TestUpdate is the update commands on a repo given old pins of every kind, on the template where it is (mise run
-// template:e2e-update, on a copy of it as it is, so the template itself never changes) and on a new repo (mise run new-repo:e2e-update): a mise tool (node, in mise.toml), a
-// package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and
-// one a minor behind (google/uuid). mise-check:update-mise, update-packages and update-go must each move its own kind
-// and nothing else, chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and
-// mise-check:verify passes. Run by mise run new-repo:e2e-update (E2E_UPDATE=true).
-func TestUpdate(t *testing.T) {
-	path := os.Getenv("REPO_PATH")
-	if path == "" || os.Getenv("E2E_UPDATE") != "true" {
-		t.Skip("mise run template:e2e-update or new-repo:e2e-update runs it (REPO_PATH=templates E2E_UPDATE=true)")
+// TestUpdateTemplate is the update commands (updateOld) on the template, templates/, as it is: on a copy of it, so the
+// template itself never changes (mise run template:e2e-update).
+func TestUpdateTemplate(t *testing.T) {
+	walk.OnlyByName(t)
+	// A copy of the template as it is, in a folder of its own with its own git, never the template itself: the updates
+	// change its files, and a walk stopped half way would leave them changed. Its installed packages aren't copied;
+	// its .mise/config.local.toml is, which runs this checkout's build (tool:install).
+	at := walk.At(t, "templates")
+	n := at.New("templates-copy")
+	if err := walk.CopyRepo(at.Dir, n.Dir, "node_modules"); err != nil {
+		t.Fatal(err)
 	}
-	var n walk.Repo
-	if os.Getenv("E2E_STAMPED") == "true" {
-		n = newRepo(walk.At(t, path), "")
-	} else {
-		// A copy of the template as it is, in a folder of its own with its own git, never the template itself: the
-		// updates change its files, and a walk stopped half way would leave them changed. Its installed packages
-		// aren't copied; its .mise/config.local.toml is, which runs this checkout's build (tool:install).
-		at := walk.At(t, path)
-		n = at.New("templates-copy")
-		if err := walk.CopyRepo(at.Dir, n.Dir, "node_modules"); err != nil {
-			t.Fatal(err)
-		}
-		n.Name = "the template, as it is (a copy)"
-		// The go.mod mise-check:template writes into a repo: the template has none of its own, as one would make it a
-		// module apart from mise-check's, whose embed it is.
-		must(t, os.WriteFile(filepath.Join(n.Dir, "go.mod"), []byte("module mise-check-template\n\ngo "+strings.TrimPrefix(runtime.Version(), "go")+"\n"), 0o644))
-		n.Pass("%s: %s copied, with the go.mod mise-check:template writes; the template itself is never changed", n.Name, path)
-	}
+	n.Name = "the template, as it is (a copy)"
+	// The go.mod mise-check:template writes into a repo: the template has none of its own, as one would make it a
+	// module apart from mise-check's, whose embed it is.
+	must(t, os.WriteFile(filepath.Join(n.Dir, "go.mod"), []byte("module mise-check-template\n\ngo "+strings.TrimPrefix(runtime.Version(), "go")+"\n"), 0o644))
+	n.Pass("%s: templates copied, with the go.mod mise-check:template writes; the template itself is never changed", n.Name)
+	updateOld(t, n)
+}
+
+// TestUpdateNewRepo is the update commands (updateOld) on a new repo, made as TestWalkNewRepo makes it (mise run
+// new-repo:e2e-update).
+func TestUpdateNewRepo(t *testing.T) {
+	walk.OnlyByName(t)
+	updateOld(t, newRepo(walk.At(t, "."), *walk.Version))
+}
+
+// updateOld gives the repo old pins of every kind: a mise tool (node, in mise.toml), a package (wrangler, in
+// package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and one a minor behind
+// (google/uuid). mise-check:update-mise, update-packages and update-go must each move its own kind and nothing else,
+// chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and mise-check:verify passes.
+func updateOld(t *testing.T, n walk.Repo) {
+	t.Helper()
 	n.SetUp()
 
 	n.Heading("Old pins of every kind")

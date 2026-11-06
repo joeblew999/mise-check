@@ -38,8 +38,7 @@ run = "mise run template:e2e-update && mise run new-repo:e2e && mise run new-rep
 
 [tasks."root:check-mise"]
 description = "misecheck on this repo's own mise.toml, the file this task is in: each task one line, the Go it runs there, its usage passed by name, no POSIX shell syntax, so every task here runs on Windows too"
-env = { MISE_FILE = "mise.toml" }
-run = 'go test . -run "^TestMise$" -count=1 -v'
+run = 'go test . -run "^TestRootMise$" -count=1 -v'
 
 [tasks."root:update"]
 description = "This repo's own pins at their newest releases, by the binary's own update, from source: go.mod's Go and modules (go-mod-upgrade's tool line among them: then TestPin says to move cmd/mise-check's pin of it too). Then tool:test and the walks prove it"
@@ -70,20 +69,17 @@ run = 'go test . -run "^TestToolRelease$" -count=1 -v -timeout 30m{% if usage.dr
 
 [tasks."template:check-mise"]
 description = "misecheck on the template's tasks file, both ways: against the binary's Go (each task's command is its file, each command file is a task's, each flag on both sides), against the walk that runs them (each task it names is one), and against the skill and the docs page (each names every task and flag, and only tasks there are)"
-env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = ".", SKILL_FILE = "templates/.claude/skills/mise-check/SKILL.md,templates/docs/mise-check/README.md" }
-run = 'go test . -run "^TestMise$" -count=1 -v'
+run = 'go test . -run "^TestTemplateMise$" -count=1 -v'
 
 [tasks."template:e2e"]
-description = "TestWalk on the template, templates/, where it is: the tasks a repo meets in turn (mise-check:init, check, show), through its own mise file, each checked (e2e_walk_test.go). After tool:install"
+description = "TestWalkTemplate: the template, templates/, where it is: the tasks a repo meets in turn (mise-check:init, check, show), through its own mise file, each checked (e2e_walk_test.go). After tool:install"
 depends = ["tool:install"]
-env = { REPO_PATH = "templates" }
-run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m'
+run = 'go test . -run "^TestWalkTemplate$" -count=1 -v -timeout 15m'
 
 [tasks."template:e2e-update"]
-description = "After template:e2e, as both use the template: TestUpdate on the template, templates/, as it is, copied into a folder of its own, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:update-mise, update-packages and update-go must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. On a copy of the template as it is, in a folder of its own: the template itself never changes, even when the walk is stopped half way. After tool:install"
+description = "After template:e2e, as both use the template: TestUpdateTemplate, on the template, templates/, as it is, copied into a folder of its own, with the go.mod mise-check:template writes into a repo: given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod), mise-check:update-mise, update-packages and update-go must each move its own and nothing else, chi to /v5 with its import rewritten; then update has nothing left, and verify passes. On a copy of the template as it is, in a folder of its own: the template itself never changes, even when the walk is stopped half way. After tool:install"
 depends = ["tool:install", "template:e2e"]
-env = { REPO_PATH = "templates", E2E_UPDATE = "true" }
-run = 'go test . -run "^TestUpdate$" -count=1 -v -timeout 20m'
+run = 'go test . -run "^TestUpdateTemplate$" -count=1 -v -timeout 20m'
 
 [tasks."template:update"]
 description = "The template's own pins at their newest releases, by its own task, mise-check:update, run in templates/ as in a repo on its own (MISE_CEILING_PATHS): node, aube, wrangler, and mise-check's release pin in .mise/config.toml (the machine's .mise/config.local.toml ignored). It ends with every pin, the moved ones before → after. Then the walks prove it. After tool:install"
@@ -93,14 +89,12 @@ env = { MISE_CEILING_PATHS = "{{config_root}}", MISE_IGNORED_CONFIG_PATHS = "{{c
 run = "mise run mise-check:update"
 
 [tasks."new-repo:e2e"]
-description = "TestWalk on a new repo, made from nothing as docs/mise-check/README.md says (an empty folder with its own git, mise-check init at this checkout's build, then mise-check:template: its app, packages and go.mod), its tasks init, check and show each checked. At this checkout's build, or the release --version names, as new-repo.yml tries each release. Gone after it. After tool:install"
+description = "TestWalkNewRepo: a new repo, made from nothing as docs/mise-check/README.md says (an empty folder with its own git, mise-check init at this checkout's build, then mise-check:template: its app, packages and go.mod), its tasks init, check and show each checked. At this checkout's build, or the release --version names, as new-repo.yml tries each release. Gone after it. After tool:install"
 usage = 'flag "--version <version>" help="make it at this release of mise-check from GitHub, as mise exec does, instead of the build of this checkout"'
 depends = ["tool:install"]
-env = { REPO_PATH = "templates", E2E_STAMPED = "true" }
-run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
+run = 'go test . -run "^TestWalkNewRepo$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
 
 [tasks."new-repo:e2e-update"]
-description = "TestUpdate: a new repo, made as new-repo:e2e makes it, given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod); mise-check:update must move every one, chi to /v5 with its import rewritten, then mise-check:verify pass. Gone after it. After tool:install"
+description = "TestUpdateNewRepo: a new repo, made as new-repo:e2e makes it, given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod); mise-check:update must move every one, chi to /v5 with its import rewritten, then mise-check:verify pass. Gone after it. After tool:install"
 depends = ["tool:install"]
-env = { REPO_PATH = "templates", E2E_STAMPED = "true", E2E_UPDATE = "true" }
-run = 'go test . -run "^TestUpdate$" -count=1 -v -timeout 20m'
+run = 'go test . -run "^TestUpdateNewRepo$" -count=1 -v -timeout 20m'

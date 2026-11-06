@@ -58,7 +58,7 @@ So when you add, rename or remove a task, change its skill with it, then run the
 names. Never weaken the check, skip it, or work around a rule (a shell script, a second line).
 
 A repo with a binary of its own also holds its tasks to its Go commands and to its end-to-end tests: how to wire that,
-misecheck's `TestMise` and the end-to-end walks (`walk`), is in [docs/mise-check/README.md](../../../docs/mise-check/README.md).
+misecheck's `Config` tests and the end-to-end walks (`walk`), is in [docs/mise-check/README.md](../../../docs/mise-check/README.md).
 
 ## Never
 

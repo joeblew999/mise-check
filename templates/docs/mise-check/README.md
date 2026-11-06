@@ -89,27 +89,26 @@ of its own for it. A newer mise-check brings a newer go-mod-upgrade.
 A repo with mise-check's binary gets misecheck's rules on its own mise files with no code: `mise run
 mise-check:check` runs them on its `mise.toml` and `.mise/tasks/*.toml` (each task one line, usage passed by name, no
 POSIX shell syntax). The strict checks, for a repo with a binary of its own (its tasks against its Go, the tests that
-run them, and its skill), are a test of your own, which calls it:
+run them, and its skill), are a test of your own for each mise file, saying in Go what to check:
 
 ```go
-func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }
+func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }
 ```
 
-and a task of your mise file runs that test, saying what to check:
+and a task of your mise file runs that test by name:
 
 ```toml
 [tasks."root:check-mise"]
-env = { MISE_FILE = "mise.toml" }
-run = 'go test . -run "^TestMise$" -count=1 -v'
+run = 'go test . -run "^TestRootMise$" -count=1 -v'
 ```
 
-| Variable | What |
+| `Config` | What |
 |---|---|
-| `MISE_FILE` | The mise file: a `mise.toml`, or a file of tasks only (`.mise/tasks/*.toml`). Without it, the check skips |
-| `GO_CMD`, `GO_LAYOUT` | For tasks that run binaries of yours: their folder (`<GO_CMD>/<binary>/`), and how each binary's commands are laid out, `file` (a file each) or `folder` (a folder each). Both, or neither |
-| `GO_CALLERS` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
-| `GO_BINARIES` | Which binaries of `GO_CMD` to hold to the strict way, comma-separated (optional; empty, all of them): for a repo taking it up one binary at a time |
-| `SKILL_FILE` | The agent skill of these tasks, a `SKILL.md` (optional): it must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
+| `MiseFile` | The mise file: a `mise.toml`, or a file of tasks only (`.mise/tasks/*.toml`) |
+| `GoCmd`, `GoLayout` | For tasks that run binaries of yours: their folder (`<GoCmd>/<binary>/`), and how each binary's commands are laid out, `file` (a file each) or `folder` (a folder each). Both, or neither |
+| `GoCallers` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
+| `GoBinaries` | Which binaries of `GoCmd` to hold to the strict way (optional; none, all of them): for a repo taking it up one binary at a time |
+| `Skills` | The agent skill of these tasks, a `SKILL.md`, and any page that must cover them too, your docs (optional): each must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
 
 ## The end-to-end tests: walk
 
@@ -121,22 +120,30 @@ process groups and Windows' long paths.
 ```go
 var myWalk = walk.Walk[*myRepo]{Steps: steps, New: newRepo, Of: func(r walk.Repo) *myRepo { return &myRepo{r} }}
 
-func TestWalk(t *testing.T)  { myWalk.Run(t) }
-func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/mytool.toml", steps) }
+func TestWalkTemplate(t *testing.T) { myWalk.Template(t, "templates") }
+func TestWalkNewRepo(t *testing.T)   { myWalk.NewRepo(t) }
+func TestSteps(t *testing.T)         { walk.CheckSteps(t, "templates/.mise/tasks/mytool.toml", steps) }
 ```
 
-A task of your mise file runs it, saying which repo:
+Which repo is the test's name: `Template` walks your template where it is, `NewRepo` a new repo made from nothing by
+your `New`. A task of your mise file runs each by name, and a walk runs only when named (`walk.OnlyByName`, which
+your own tests that change things can call too), so `go test ./...` never walks:
 
-| Variable | What |
+```toml
+[tasks."new-repo:e2e"]
+usage = 'flag "--version <version>" help="make it at this release"'
+run = 'go test . -run "^TestWalkNewRepo$" -count=1 -v{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
+```
+
+| Test flag | What |
 |---|---|
-| `REPO_PATH` | The folder to walk, from where the test runs: `templates`, your template where it is. Without it, the walk skips |
-| `E2E_STAMPED=true` | Walk a new repo instead, made from nothing by your `New` |
-| `E2E_STAGE` | How far to walk, when your steps have stages |
+| `-version` | The release a new repo is made at (default this checkout's build) |
+| `-stage` | How far to walk, when your steps have stages (default the first) |
 
 For a tool whose steps are numbered in the order a repo takes them (mise-cloudflare's `cloudflare:03-init` to
 `15-clean`), `CheckSteps` fails unless your steps are exactly your mise file's numbered tasks, in their order; a tool
 with few steps (mise-check's `init`, `check`, `show`) needs no numbers, and no `TestSteps`. Either way, misecheck
-(`GO_CALLERS`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
+(`GoCallers`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
 files can't give it, cut off from the repo around it, `Prepare` adds it (mise-check's own gives its template, a folder of
 its module with no `go.mod` of its own, that module's Go).
 
@@ -150,11 +157,12 @@ The Go a task runs: from source (`go run|test|build ./path`, any folder, several
 `./...` or `./path/...` Go anywhere below it, as `go test` finds it;
 a binary of yours (`<binary> <command>`, built or run as `go tool <binary> <command>`) must have that command, every command must be one a task runs, and every flag
 is declared on both sides. Anything else a task runs (`hugo …`, `wrangler …`) is held to the rules every task is, above, and logged as not
-checked: a file of only such tool tasks passes on those rules alone, unless it's given `GO_CMD` (then its tasks must
+checked: a file of only such tool tasks passes on those rules alone, unless it's given `GoCmd` (then its tasks must
 run its Go).
 
-Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. The skill (`SKILL_FILE`)
-names every task and every flag, and every task it names is one.
+A task's `go test -run "^TestX$"` must name a test there is, in the folder it tests: a test renamed, and the task
+that runs it says so. Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. Each
+of `Skills` names every task and every flag, and every task it names is one.
 
 Skills: `mise run mise-check:check` holds every skill of the repo, `.claude/skills/<namespace>/SKILL.md`, to the tasks
 of that namespace, both ways: it names every task and every flag they take, and every task of the namespace it names

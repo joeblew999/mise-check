@@ -10,8 +10,12 @@ import (
 	"testing"
 )
 
-// TestMise checks this repo's own mise file, by itself, as any repo does: mise run root:check-mise sets MISE_FILE.
-func TestMise(t *testing.T) { Check(t, FromEnv()) }
+// TestRootMise checks this repo's own mise file, as any repo checks its own: mise run root:check-mise runs it.
+func TestRootMise(t *testing.T) { Check(t, Config{MiseFile: "mise.toml"}) }
+
+// TestTemplateMise checks the template's tasks file the strict way, against the binary's Go, the walk that runs them,
+// the skill and the docs: mise run template:check-mise runs it.
+func TestTemplateMise(t *testing.T) { Check(t, ours(".")) }
 
 // ---- The checker's own tests: what it reads, and how ----
 
@@ -81,7 +85,8 @@ func TestRunForms(t *testing.T) {
 		"tool":                            {{place: in("cmd", "tool"), binary: "tool"}},
 		"CI=1 tool check --json":          {{place: in("cmd", "tool", "check.go"), binary: "tool"}},
 		"go run ./cmd/tool -x":            {{place: in("cmd", "tool"), binary: "tool"}},
-		"go test ./e2e -run '^TestX$' -v": {{place: in("e2e")}},
+		"go test ./e2e -run '^TestX$' -v": {{place: in("e2e"), test: "TestX"}},
+		`go test . -run "^TestY$"`:        {{place: in(), test: "TestY"}},
 		"go test ./...":                   {{place: in(), tree: true}},
 		"go vet ./... && go test ./...":   {{notGo: "go vet ./..."}, {place: in(), tree: true}},
 		"go tool tool dev":                {{place: in("cmd", "tool", "dev.go"), binary: "tool"}},
@@ -107,17 +112,6 @@ func ours(dir string) Config {
 		GoLayout:  "file",
 		GoCallers: dir,
 		Skills:    []string{filepath.Join(dir, "templates", ".claude", "skills", "mise-check", "SKILL.md"), filepath.Join(dir, "templates", "docs", "mise-check", "README.md")},
-	}
-}
-
-// TestTemplate: mise-check's own template passes, the strict way, and so does this repo's own mise file (its
-// lib:check-mise).
-func TestTemplate(t *testing.T) {
-	if errs := checked(ours(".")); len(errs) > 0 {
-		t.Errorf("templates/'s tasks fail misecheck:\n%s", strings.Join(errs, "\n"))
-	}
-	if errs := checked(Config{MiseFile: "mise.toml"}); len(errs) > 0 {
-		t.Errorf("mise.toml fails misecheck:\n%s", strings.Join(errs, "\n"))
 	}
 }
 
@@ -272,10 +266,10 @@ func (r *recorder) Fatal(args ...any)                 { r.Error(args...); runtim
 func (r *recorder) Fatalf(format string, args ...any) { r.Errorf(format, args...); runtime.Goexit() }
 func (r *recorder) Skip(...any)                       { runtime.Goexit() }
 
-// TestBinaries: GO_BINARIES holds only the binaries it names to the strict way, so a repo can take it up one binary at
-// a time; without it every binary of GO_CMD is held to it, and a name that isn't a binary is an error.
-// TestToolTasks: a file of tasks that only run tools passes the usage rules without GO_CMD, and still fails them (POSIX
-// shell syntax here); given GO_CMD, a file whose tasks run no Go fails, as its binary's Go has moved.
+// TestBinaries: GoBinaries holds only the binaries it names to the strict way, so a repo can take it up one binary at
+// a time; without it every binary of GoCmd is held to it, and a name that isn't a binary is an error.
+// TestToolTasks: a file of tasks that only run tools passes the usage rules without GoCmd, and still fails them (POSIX
+// shell syntax here); given GoCmd, a file whose tasks run no Go fails, as its binary's Go has moved.
 func TestToolTasks(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "tools.toml")
@@ -284,7 +278,7 @@ func TestToolTasks(t *testing.T) {
 	}
 	write("hugo server --bind 0.0.0.0")
 	if errs := checked(Config{MiseFile: file}); len(errs) > 0 {
-		t.Errorf("tool tasks without GO_CMD should pass; got:\n%s", strings.Join(errs, "\n"))
+		t.Errorf("tool tasks without GoCmd should pass; got:\n%s", strings.Join(errs, "\n"))
 	}
 	write("hugo server --port $PORT")
 	if errs := checked(Config{MiseFile: file}); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "POSIX shell syntax") }) {
@@ -294,7 +288,7 @@ func TestToolTasks(t *testing.T) {
 	copyOurs(t, dir)
 	withCmd := Config{MiseFile: file, GoCmd: filepath.Join(dir, "cmd"), GoLayout: "file"}
 	if errs := checked(withCmd); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "runs Go, in either form") }) {
-		t.Errorf("given GO_CMD, tasks that run no Go should fail; got:\n%s", strings.Join(errs, "\n"))
+		t.Errorf("given GoCmd, tasks that run no Go should fail; got:\n%s", strings.Join(errs, "\n"))
 	}
 }
 
@@ -306,16 +300,31 @@ func TestBinaries(t *testing.T) {
 
 	all := ours(dir)
 	if errs := checked(all); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "is a command of other") }) {
-		t.Errorf("without GO_BINARIES, a binary no task runs should fail; got:\n%s", strings.Join(errs, "\n"))
+		t.Errorf("without GoBinaries, a binary no task runs should fail; got:\n%s", strings.Join(errs, "\n"))
 	}
 	mc := ours(dir)
-	mc.GoBinaries = "mise-check"
+	mc.GoBinaries = []string{"mise-check"}
 	if errs := checked(mc); len(errs) > 0 {
-		t.Errorf("GO_BINARIES=mise-check should leave other alone; got:\n%s", strings.Join(errs, "\n"))
+		t.Errorf("GoBinaries mise-check should leave other alone; got:\n%s", strings.Join(errs, "\n"))
 	}
 	wrong := ours(dir)
-	wrong.GoBinaries = "mise-check,nope"
-	if errs := checked(wrong); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "GO_BINARIES names nope") }) {
-		t.Errorf("GO_BINARIES naming no binary should fail; got:\n%s", strings.Join(errs, "\n"))
+	wrong.GoBinaries = []string{"mise-check", "nope"}
+	if errs := checked(wrong); !slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "GoBinaries names nope") }) {
+		t.Errorf("GoBinaries naming no binary should fail; got:\n%s", strings.Join(errs, "\n"))
+	}
+}
+
+// TestRunsTest: a task's go test -run "^TestX$" must name a test there is: renamed, and the task says so.
+func TestRunsTest(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\n\ngo 1.26\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "a_test.go"), []byte("package x\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n"), 0o644)
+	file := filepath.Join(dir, "mise.toml")
+	for test, ok := range map[string]bool{"TestA": true, "TestB": false} {
+		os.WriteFile(file, []byte("[tasks.\"x:test\"]\nrun = 'go test . -run \"^"+test+"$\" -count=1'\n"), 0o644)
+		errs := checked(Config{MiseFile: file})
+		if caught := slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "runs the test "+test) }); caught == ok {
+			t.Errorf("-run %s: %v", test, errs)
+		}
 	}
 }

@@ -103,14 +103,14 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | Task | What | When |
 |---|---|---|
 | `root:verify` | Everything GitHub's CI runs, the same command: the checks at once, then the walks one after the other (they share the machine's aube store) | Before every push |
-| `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
+| `root:check-mise` | `TestRootMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
 | `root:update` | This repo's own pins (`mise.toml`'s tools, `go.mod`'s modules) at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
 | `root:show-users` | Which of joeblew999's repos use mise-check (go.mod, mise pins), at what version, the behind ones marked | `tool:release` runs it after every release |
 | `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
 | `tool:release` | A release from the commit checked out, as `release.yml` runs it; `--dry-run` tags and publishes nothing | Never by hand: a merge to main runs it |
-| `template:check-mise` | `TestMise` on the template's tasks against the binary's Go, the walk that runs them and the skill, both ways | After a change to a task, a command or the skill |
+| `template:check-mise` | `TestTemplateMise` on the template's tasks against the binary's Go, the walk that runs them and the skill, both ways | After a change to a task, a command or the skill |
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:e2e-update` | A copy of the template as it is, in a folder of its own, with the go.mod `mise-check:template` writes, given old pins of every kind: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
@@ -129,7 +129,7 @@ which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
 - **A new repo**, made as a person makes one: an empty folder (`mise-check-new`) with its own git, `mise-check init`,
   then its own `mise-check:template`. Its `init` runs at this checkout's build (`local`), or at a release with
   `--version`, and pins itself in `.mise/config.toml`.
-- **The template and a new repo, each with old pins** (`TestUpdate`; `template:e2e-update` runs on a copy of the template
+- **The template and a new repo, each with old pins** (`TestUpdateTemplate` and `TestUpdateNewRepo`; `template:e2e-update` runs on a copy of the template
   as it is, so the template itself never changes): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
   go-chi/chi v1.5.4 (imported by the app) and google/uuid v1.3.0 in go.mod. `mise-check:update-mise`,
   `update-packages` and `update-go` must each move its own kind and nothing else, chi to `/v5` with the app's import
@@ -145,7 +145,7 @@ of it broken eleven ways, one at a time (its skill among them), is caught each t
 | [templates/](templates/) | other repos' | the template: the little app plus the tool's half, which `init` writes into a repo at the same paths; [templates.go](templates/templates.go) lists that half |
 | [cmd/mise-check/](cmd/mise-check/) | other repos' | the command: a file per command, `x.go` holding `r.x`, which `main.go`'s `case "x"` calls |
 | [misecheck.go](misecheck.go), [walk/](walk/) | other repos' | the two packages a repo's tests import |
-| [e2e_walk_test.go](e2e_walk_test.go), [e2e_tool_test.go](e2e_tool_test.go) | this repo's | at the top, as the end-to-end runs on everything else: the walk and `TestUpdate`; `TestToolRelease`, the release, which only `mise run tool:release` runs |
+| [e2e_walk_test.go](e2e_walk_test.go), [e2e_tool_test.go](e2e_tool_test.go) | this repo's | at the top, as the end-to-end runs on everything else: the walks and the updates; `TestToolRelease`, the release, which only `mise run tool:release` runs |
 | [.github/workflows/](.github/workflows/) | this repo's | its own workflows; other repos get theirs from `templates/` |
 
 ### CI and releases

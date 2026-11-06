@@ -18,13 +18,15 @@
 //
 //	var greetWalk = walk.Walk[*greeter]{Steps: steps, New: newRepo, Of: func(r walk.Repo) *greeter { return &greeter{r} }}
 //
-//	func TestWalk(t *testing.T)  { greetWalk.Run(t) }
-//	func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
+//	func TestWalkTemplate(t *testing.T) { greetWalk.Template(t, "templates") }
+//	func TestWalkNewRepo(t *testing.T)   { greetWalk.NewRepo(t) }
+//	func TestSteps(t *testing.T)         { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
 //
-// The task that runs it says which repo (REPO_PATH=templates: the template where it is; E2E_STAMPED=true: a new repo,
-// made at the release -version names), and how far (E2E_STAGE).
+// Which repo is the test's name, and the task that runs it names it (go test . -run "^TestWalkTemplate$"); how far is
+// the test's flag -stage, and the release a new repo is made at its flag -version, both from the task's own usage
+// (-args -stage deploy). A walk runs only when its test is named, so go test ./... never walks (OnlyByName).
 //
-// The tool's test names each task in full ("greet:03-init"), never glued from pieces, so misecheck (GO_CALLERS) checks
+// The tool's test names each task in full ("greet:03-init"), never glued from pieces, so misecheck (GoCallers) checks
 // every name against the tasks file, and Numbered reads that file's numbered tasks, so a test can check its steps are
 // exactly those, in their order.
 package walk
@@ -58,12 +60,12 @@ type Repo struct {
 	With []string
 }
 
-// At is the repo at path, a folder of the checkout the test runs in: the template, where it is. The task that runs the
-// test names it (REPO_PATH=templates).
+// At is the repo at path, a folder of the checkout the test runs in ("templates": the template, where it is; ".": the
+// checkout itself).
 func At(t *testing.T, path string) Repo {
 	t.Helper()
 	if path == "" {
-		t.Fatal("no repo to walk: the task that runs this test names it (REPO_PATH=templates)")
+		t.Fatal("no repo to walk: At takes a folder of the checkout (templates)")
 	}
 	top, err := filepath.Abs(".")
 	if err == nil {
@@ -241,12 +243,16 @@ func Steps[W any](r Repo, w W, steps []Step[W], upTo int) {
 // from its own usage (--version v0.4.0 → go test … -args -version "v0.4.0"). Empty, it's this checkout's build.
 var Version = flag.String("version", "", "the release a new repo is made at (default this checkout's build)")
 
+// Stage is how far the walk goes: the test's flag -stage, one of the Walk's Stages, which the task that runs it passes
+// (go test … -args -stage deploy). Empty, the first.
+var Stage = flag.String("stage", "", "how far the walk goes, one of its stages (default the first)")
+
 // Walk is a tool's whole walk: its steps, the stages they're in, how a person makes a new repo with the tool (as its
-// README says), and the tool's own walk type each step's Check is given. Run does the rest, so a tool's TestWalk is
-// one line: func TestWalk(t *testing.T) { greetWalk.Run(t) }.
+// README says), and the tool's own walk type each step's Check is given. Template and NewRepo do the rest, so each of
+// a tool's walk tests is one line: func TestWalkTemplate(t *testing.T) { greetWalk.Template(t, "templates") }.
 type Walk[W any] struct {
 	Steps  []Step[W]
-	Stages []string                          // the stages, as E2E_STAGE names them, in order; none, one stage
+	Stages []string                          // the stages, as -stage names them, in order; none, one stage
 	New    func(r Repo, version string) Repo // a new repo, made from nothing at version ("": this checkout's build)
 	// Prepare, when there is one, makes the repo ready before it's set up: env it needs (Repo.With) that its own
 	// mise files can't give it, cut off from the repo around it.
@@ -254,36 +260,54 @@ type Walk[W any] struct {
 	Of      func(r Repo) W // the tool's walk of a repo, which each Check is given
 }
 
-// Run walks the repo the task that runs the test names: REPO_PATH, a folder of this checkout (templates, the template
-// where it is), or, with E2E_STAMPED=true, a new repo made from nothing by New at Version. It sets the repo up as a
-// person does (SetUp), then runs the steps as far as the stage E2E_STAGE names (the first, without it). Without
-// REPO_PATH it skips, so go test ./... never walks.
-func (w Walk[W]) Run(t *testing.T) {
+// Template walks path, a folder of this checkout (templates: the template, where it is): set up as a person does
+// (SetUp), then the steps as far as -stage. It runs only when its test is named (OnlyByName).
+func (w Walk[W]) Template(t *testing.T, path string) {
 	t.Helper()
-	path := os.Getenv("REPO_PATH")
-	if path == "" {
-		t.Skip("REPO_PATH names the repo to walk, and the task that runs the walk sets it (REPO_PATH=templates)")
+	OnlyByName(t)
+	if *Version != "" {
+		t.Fatalf("-version %s is the release a new repo is made at, and this walks %s where it is", *Version, path)
 	}
+	w.walk(At(t, path))
+}
+
+// NewRepo walks a new repo, made from nothing by New at -version (this checkout's build, without it): set up as a
+// person does (SetUp), then the steps as far as -stage. It runs only when its test is named (OnlyByName).
+func (w Walk[W]) NewRepo(t *testing.T) {
+	t.Helper()
+	OnlyByName(t)
+	if w.New == nil {
+		t.Fatal("the walk has no New: how a person makes a new repo with the tool")
+	}
+	w.walk(w.New(At(t, "."), *Version))
+}
+
+func (w Walk[W]) walk(r Repo) {
+	r.T.Helper()
 	upTo := 0
-	if s := os.Getenv("E2E_STAGE"); s != "" {
-		if upTo = slices.Index(w.Stages, s); upTo < 0 {
-			t.Fatalf("E2E_STAGE=%s: the stages are %s", s, strings.Join(w.Stages, ", "))
+	if *Stage != "" {
+		if upTo = slices.Index(w.Stages, *Stage); upTo < 0 {
+			r.T.Fatalf("-stage %s: the stages are %s", *Stage, strings.Join(w.Stages, ", "))
 		}
-	}
-	r := At(t, path)
-	switch stamped := os.Getenv("E2E_STAMPED") == "true"; {
-	case stamped && w.New == nil:
-		t.Fatal("E2E_STAMPED=true, and the walk has no New: how a person makes a new repo with the tool")
-	case stamped:
-		r = w.New(r, *Version)
-	case *Version != "":
-		t.Fatalf("-version %s is the release a new repo is made at: E2E_STAMPED=true too", *Version)
 	}
 	if w.Prepare != nil {
 		r = w.Prepare(r)
 	}
 	r.SetUp()
 	Steps(r, w.Of(r), w.Steps, upTo)
+}
+
+// OnlyByName skips the test unless go test's -run names it alone ("^TestWalkTemplate$", as the task that runs it
+// does), so go test ./... never walks, deploys or releases: a test that changes things runs only when asked for.
+func OnlyByName(t *testing.T) {
+	t.Helper()
+	run := ""
+	if f := flag.Lookup("test.run"); f != nil {
+		run = f.Value.String()
+	}
+	if strings.TrimSuffix(strings.TrimPrefix(run, "^"), "$") != t.Name() {
+		t.Skipf("runs only when named: go test -run '^%s$' (the task that runs it names it)", t.Name())
+	}
 }
 
 // CheckSteps fails unless the steps are exactly the numbered tasks of the mise file, in their order (Numbered), so the

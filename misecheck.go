@@ -2,23 +2,23 @@
 // every task runs the same on macOS, Linux and Windows. That is all it does: it checks the shape, never what the Go
 // does.
 //
-// A repo calls it from a test of its own, and a task of its mise file runs that test, its env saying what to check:
+// A repo calls it from a test of its own, one for each mise file it checks, saying in Go what to check, and a task of
+// its mise file runs that test by name:
 //
-//	func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }
+//	func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }
 //
 //	[tasks."root:check-mise"]
-//	env = { MISE_FILE = "mise.toml" }
-//	run = 'go test . -run "^TestMise$" -count=1 -v'
+//	run = 'go test . -run "^TestRootMise$" -count=1 -v'
 //
 // Three sides, each checked against the others:
 //
 //   - the mise file, the interface: each task is one line that runs something, with the flags and arguments it takes
 //     declared in its usage;
 //   - the Go its tasks run;
-//   - Go that runs the tasks by name, an end-to-end test say (optional, GO_CALLERS).
+//   - Go that runs the tasks by name, an end-to-end test say (optional, GoCallers).
 //
 // How it's used, in mise-cloudflare say: a loop that runs both ways, mise to Go and back, several levels deep. Its
-// root mise.toml runs Go tests (mise run template:e2e-serve runs TestWalk), which run its template's tasks by name
+// root mise.toml runs Go tests (mise run template:e2e-serve runs TestWalkTemplate), which run its template's tasks by name
 // (cloudflare:06-serve), which run its tool's Go (mise-cloudflare serve). A task of each mise file runs Check on it,
 // even on the file that holds that task: root:check-mise checks the mise.toml it's in, and template:check-mise checks
 // the template's tasks against the Go they run and against the end-to-end Go that runs them, so every link is checked
@@ -30,20 +30,20 @@
 //   - Go from its source: go run, go test or go build, on a folder (./cmd/mise-cloudflare), several, a whole tree
 //     (./...), or none, the folder the task runs in. Each folder must hold Go; nothing else is asked of its layout,
 //     so a binary that is one main.go fits as it is.
-//   - A binary of GO_CMD: <binary> <command>, or <binary> alone for its main.go, built and on the PATH; or the same
+//   - A binary of GoCmd: <binary> <command>, or <binary> alone for its main.go, built and on the PATH; or the same
 //     through the module's tool line, go tool <binary> <command>, which Go builds at the version go.mod pins (a repo's
 //     own, or one a repo gets from the module it imports, so go.sum and the compiler check it). Its commands are laid out the
-//     way GO_LAYOUT says: file, a file each, <GO_CMD>/<binary>/<command>.go (dashes as underscores) holding the
-//     function named for it (set_secrets.go, setSecrets); or folder, a folder each, <GO_CMD>/<binary>/<command>/.
+//     way GoLayout says: file, a file each, <GoCmd>/<binary>/<command>.go (dashes as underscores) holding the
+//     function named for it (set_secrets.go, setSecrets); or folder, a folder each, <GoCmd>/<binary>/<command>/.
 //     Code the commands share isn't a command and is left alone. This is the strictest: every command a task runs
 //     must be there, every command must be one a task runs, and every flag must be declared on both sides, in the
 //     usage of the tasks running the binary and in its Go (flag.Bool("yes", …)).
-//   - Anything else (hugo …, wrangler …, go vet …, go tool of a binary that isn't GO_CMD's): logged as not checked,
+//   - Anything else (hugo …, wrangler …, go vet …, go tool of a binary that isn't GoCmd's): logged as not checked,
 //     never failed.
 //
 // The tasks can be in a mise.toml ([tasks.…]) or in a file of tasks only (.mise/tasks/*.toml, or one a mise.toml
-// includes); GO_CMD and GO_CALLERS are each optional, so a repo checks as much as it has. A file of tasks that only run
-// tools (hugo …, process-compose …), with no GO_CMD, is held to the rules every task is, below; one given GO_CMD,
+// includes); GoCmd and GoCallers are each optional, so a repo checks as much as it has. A file of tasks that only run
+// tools (hugo …, process-compose …), with no GoCmd, is held to the rules every task is, below; one given GoCmd,
 // whose tasks then run no Go at all, fails: the Go its binary's tasks ran has moved.
 //
 // Every task, however it runs Go:
@@ -57,19 +57,23 @@
 //   - its run has no POSIX shell syntax (${…}, $name, NAME=value in front of a command), which Windows' cmd doesn't
 //     read: variables go in the task's env.
 //
-// Go that runs tasks (GO_CALLERS) names each in full, "namespace:task", and every name must be a task of the mise
+// Go that runs tasks (GoCallers) names each in full, "namespace:task", and every name must be a task of the mise
 // file. A name glued together from pieces (the namespace's string plus a variable) can't be checked, so it fails, and
 // so does a folder of callers that names no task at all.
 //
-// It knows nothing of any repo. The task that runs a repo's test says what to check (Config, read by FromEnv):
+// It knows nothing of any repo. The repo's test says what to check, in a Config:
 //
-//	MISE_FILE   the mise file (without it, Check skips). Its tasks run in its own folder, or, for a
-//	            .mise/tasks/*.toml, in the project's root; a task's ./path is read from there
-//	GO_CMD      the folder of the built binaries, <GO_CMD>/<binary>/   } for built binaries: both, or neither
-//	GO_LAYOUT   file or folder: how a binary's commands are laid out    }
-//	GO_CALLERS  the folder of Go that runs the tasks by name (optional)
-//	GO_BINARIES which binaries of GO_CMD to hold to the strict way, comma-separated (optional; empty, all of them):
-//	            for a repo taking it up one binary at a time
+//	MiseFile   the mise file. Its tasks run in its own folder, or, for a .mise/tasks/*.toml, in the project's root; a
+//	           task's ./path is read from there
+//	GoCmd      the folder of the built binaries, <GoCmd>/<binary>/   } for built binaries: both, or neither
+//	GoLayout   file or folder: how a binary's commands are laid out    }
+//	GoCallers  the folder of Go that runs the tasks by name (optional)
+//	GoBinaries which binaries of GoCmd to hold to the strict way (optional; none, all of them): for a repo taking it
+//	           up one binary at a time
+//	Skills     the agent skill of the tasks, and any page that must cover them too (optional)
+//
+// A task's go test -run "^TestX$" must name a test there is, in the folder it tests: a test renamed, and the task
+// that runs it says so, as a command renamed does.
 //
 // On the Go side it reads only Go: .go files and Go's flag package. It never passes on nothing, and it logs what it
 // checked.
@@ -86,50 +90,37 @@ import (
 	"testing"
 )
 
-// Config says what Check checks: the mise file, and the Go on the other side of it. FromEnv reads it from the
-// environment, so the task that runs a repo's test says it.
+// Config says what Check checks: the mise file, and the Go on the other side of it, written in the repo's test.
 type Config struct {
-	MiseFile  string // MISE_FILE: the mise file; empty, Check skips
-	GoCmd     string // GO_CMD: the folder of the built binaries, <GoCmd>/<binary>/   } for built binaries:
-	GoLayout  string // GO_LAYOUT: how a binary's commands are laid out, file or folder } both, or neither
-	GoCallers string // GO_CALLERS: the folder of Go that runs the tasks by name (optional)
-	// GO_BINARIES: which binaries of GoCmd to hold to the strict way, comma-separated (optional; empty, all of them).
-	// For a repo taking it up one binary at a time: the others are left alone, as anything else a task runs is.
-	GoBinaries string
-	// SKILL_FILE: the agent skill of these tasks (a SKILL.md), and any other page that must cover them (the tool's docs),
-	// comma-separated, each held to them both ways: every task and flag of the mise file is named in it, and every task
-	// it names, in full ("namespace:task"), is one (optional).
+	MiseFile  string // the mise file
+	GoCmd     string // the folder of the built binaries, <GoCmd>/<binary>/   } for built binaries:
+	GoLayout  string // how a binary's commands are laid out, file or folder   } both, or neither
+	GoCallers string // the folder of Go that runs the tasks by name (optional)
+	// GoBinaries are which binaries of GoCmd to hold to the strict way (optional; none, all of them). For a repo taking
+	// it up one binary at a time: the others are left alone, as anything else a task runs is.
+	GoBinaries []string
+	// Skills are the agent skill of these tasks (a SKILL.md), and any other page that must cover them (the tool's
+	// docs), each held to them both ways: every task and flag of the mise file is named in it, and every task it
+	// names, in full ("namespace:task"), is one (optional).
 	Skills []string
 }
 
-// FromEnv is the Config the environment says: MISE_FILE, GO_CMD, GO_LAYOUT, GO_CALLERS and GO_BINARIES.
-func FromEnv() Config {
-	return Config{
-		MiseFile:   os.Getenv("MISE_FILE"),
-		GoCmd:      os.Getenv("GO_CMD"),
-		GoLayout:   os.Getenv("GO_LAYOUT"),
-		GoCallers:  os.Getenv("GO_CALLERS"),
-		GoBinaries: os.Getenv("GO_BINARIES"),
-		Skills:     splitList(os.Getenv("SKILL_FILE")),
-	}
-}
-
 // Check checks the mise file c names against its Go, both ways, by the rules of the package documentation. A repo
-// calls it from a test of its own: func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }.
+// calls it from a test of its own: func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }.
 func Check(t testing.TB, c Config) {
 	t.Helper()
 	file, cmd, layout, callers := c.MiseFile, c.GoCmd, c.GoLayout, c.GoCallers
 	if file == "" {
-		t.Skip("MISE_FILE is the mise file to check: the task that runs this test sets it")
+		t.Fatal("Config.MiseFile is empty: the test says which mise file to check")
 	}
 	if (cmd == "") != (layout == "") {
-		t.Fatalf("GO_CMD=%q GO_LAYOUT=%q: give both, for tasks that run a built binary, or neither", cmd, layout)
+		t.Fatalf("GoCmd %q GoLayout %q: give both, for tasks that run a built binary, or neither", cmd, layout)
 	}
-	if c.GoBinaries != "" && cmd == "" {
-		t.Fatalf("GO_BINARIES=%q: it picks binaries of GO_CMD, and there's no GO_CMD", c.GoBinaries)
+	if len(c.GoBinaries) > 0 && cmd == "" {
+		t.Fatalf("GoBinaries %v: it picks binaries of GoCmd, and there's no GoCmd", c.GoBinaries)
 	}
 	if layout != "" && layout != "file" && layout != "folder" {
-		t.Fatalf("GO_LAYOUT=%q: it's file (a command is <GO_CMD>/<binary>/<command>.go) or folder (<GO_CMD>/<binary>/<command>/)", layout)
+		t.Fatalf("GoLayout %q: it's file (a command is <GoCmd>/<binary>/<command>.go) or folder (<GoCmd>/<binary>/<command>/)", layout)
 	}
 	tasks, unreadable, err := readTasks(file)
 	if err != nil {
@@ -139,23 +130,23 @@ func Check(t testing.TB, c Config) {
 		t.Error(u)
 	}
 	if len(tasks) == 0 {
-		t.Errorf("MISE_FILE=%s has no tasks: did it move?", file)
+		t.Errorf("MiseFile %s has no tasks: did it move?", file)
 	}
 	g := goSide{cmd: cmd, layout: layout}
 	if cmd != "" {
 		if g.binaries = binariesIn(cmd); len(g.binaries) == 0 {
-			t.Errorf("GO_CMD=%s holds no binary (a folder %s/<binary>/): did the Go move?", cmd, cmd)
+			t.Errorf("GoCmd %s holds no binary (a folder %s/<binary>/): did the Go move?", cmd, cmd)
 		}
-		if c.GoBinaries != "" {
+		if len(c.GoBinaries) > 0 {
 			var picked []string
-			for _, b := range strings.Split(c.GoBinaries, ",") {
-				if b = strings.TrimSpace(b); !slices.Contains(g.binaries, b) {
-					t.Errorf("GO_BINARIES names %s, which isn't a binary of GO_CMD=%s (%s/%s/)", b, cmd, cmd, b)
+			for _, b := range c.GoBinaries {
+				if !slices.Contains(g.binaries, b) {
+					t.Errorf("GoBinaries names %s, which isn't a binary of GoCmd %s (%s/%s/)", b, cmd, cmd, b)
 				} else {
 					picked = append(picked, b)
 				}
 			}
-			t.Logf("GO_BINARIES: %d of the %d binaries of %s held to the strict way: %s", len(picked), len(g.binaries), cmd, strings.Join(picked, ", "))
+			t.Logf("GoBinaries: %d of the %d binaries of %s held to the strict way: %s", len(picked), len(g.binaries), cmd, strings.Join(picked, ", "))
 			g.binaries = picked
 		}
 	}
@@ -168,7 +159,7 @@ func Check(t testing.TB, c Config) {
 		checkSkill(t, file, tasks, skill)
 	}
 	if callers == "" {
-		t.Logf("Go → mise: no GO_CALLERS, so no Go that runs %s by name is checked", file)
+		t.Logf("Go → mise: no GoCallers, so no Go that runs %s by name is checked", file)
 		return
 	}
 	checkGoCallsMise(t, file, tasks, callers)
@@ -187,7 +178,8 @@ type goSide struct {
 // and the binary when the place is one of ours; or, in neither form, the command, in notGo.
 type ran struct {
 	place, binary, notGo string
-	tree                 bool // ./... or ./path/...: Go anywhere below place, not in place itself
+	tree                 bool   // ./... or ./path/...: Go anywhere below place, not in place itself
+	test                 string // go test -run "^TestX$": the test it runs, TestX
 }
 
 // runsOf reads a run line command by command (apart by &&, || and ;), each in one of the two forms:
@@ -217,9 +209,15 @@ func (g goSide) runsOf(run, dir string) []ran {
 		switch {
 		case words[0] == "go" && len(words) > 1 && slices.Contains([]string{"run", "test", "build"}, words[1]):
 			var paths []string
-			for _, w := range words[2:] {
+			test := ""
+			for i, w := range words[2:] {
 				if w == "." || strings.HasPrefix(w, "./") {
 					paths = append(paths, w)
+				}
+				if w == "-run" && words[1] == "test" && i+3 < len(words) {
+					if m := regexp.MustCompile(`^["']?\^?([A-Za-z_][A-Za-z0-9_]*)\$?["']?$`).FindStringSubmatch(words[i+3]); m != nil {
+						test = m[1]
+					}
 				}
 			}
 			if len(paths) == 0 {
@@ -227,7 +225,7 @@ func (g goSide) runsOf(run, dir string) []ran {
 			}
 			for _, w := range paths {
 				p := strings.TrimSuffix(strings.TrimSuffix(w, "..."), "/")
-				rans = append(rans, ran{place: abs(filepath.Join(dir, p)), binary: g.binaryAt(abs(filepath.Join(dir, p))), tree: strings.HasSuffix(w, "...")})
+				rans = append(rans, ran{place: abs(filepath.Join(dir, p)), binary: g.binaryAt(abs(filepath.Join(dir, p))), tree: strings.HasSuffix(w, "..."), test: test})
 			}
 		case g.cmd != "" && slices.Contains(g.binaries, words[0]):
 			place := filepath.Join(g.cmd, words[0])
@@ -256,22 +254,11 @@ func (g goSide) binaryAt(place string) string {
 	return ""
 }
 
-// splitList is a comma-separated list of files, as an env variable gives it: none for "".
-func splitList(s string) []string {
-	var out []string
-	for _, f := range strings.Split(s, ",") {
-		if f = strings.TrimSpace(f); f != "" {
-			out = append(out, f)
-		}
-	}
-	return out
-}
-
 // CheckSkills holds every agent skill of the repo at dir to the tasks it's for, as checkSkill does one: a skill in
 // .claude/skills/<name>/SKILL.md is the skill of the tasks of namespace <name> (the task <name>, and <name>:…), in the
 // repo's mise.toml and .mise/tasks/*.toml. Each such skill names every one of its tasks and every flag they take, and
 // every task of its namespace it names is one. A skill whose namespace has no tasks is the repo's own business, left
-// alone. With GO_CMD holding each tool's tasks to its Go, every tool's skill is held to everything its binary can do.
+// alone. With GoCmd holding each tool's tasks to its Go, every tool's skill is held to everything its binary can do.
 // mise-check check runs it in every repo; a test of a repo's own can too.
 func CheckSkills(t testing.TB, dir string) {
 	t.Helper()
@@ -313,7 +300,7 @@ func checkSkill(t testing.TB, file string, tasks []task, skill string) {
 	t.Helper()
 	b, err := os.ReadFile(skill)
 	if err != nil {
-		t.Errorf("skill: SKILL_FILE=%s can't be read: %v", skill, err)
+		t.Errorf("skill: Skills: %s can't be read: %v", skill, err)
 		return
 	}
 	text := string(b)
@@ -362,7 +349,7 @@ func checkSkill(t testing.TB, file string, tasks []task, skill string) {
 }
 
 // checkMiseToGo checks mise to Go: every place of Go a task runs is there, and is Go. A task with nothing in either
-// form is reported, as not checked. A mise file whose tasks run no Go at all fails if it's given GO_CMD, which says
+// form is reported, as not checked. A mise file whose tasks run no Go at all fails if it's given GoCmd, which says
 // it holds a binary's tasks; without it, it's a file of tool tasks, held to the usage rules alone.
 func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 	t.Helper()
@@ -371,13 +358,16 @@ func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 		for _, r := range g.runsOf(task.run, taskDir(file)) {
 			if r.notGo != "" {
 				notGo++
-				t.Logf("not checked: %s's task %s runs %q, which is neither form: go run|test|build ./path, or a binary of GO_CMD (itself, or go tool <binary>)", file, task.name, r.notGo)
+				t.Logf("not checked: %s's task %s runs %q, which is neither form: go run|test|build ./path, or a binary of GoCmd (itself, or go tool <binary>)", file, task.name, r.notGo)
 				continue
 			}
 			places++
 			if !isGo(r.place) && !(r.tree && hasGoBelow(r.place)) {
 				missing++
 				t.Errorf("mise → Go: %s's task %s runs %q, so its Go is %s, and there's none there", file, task.name, task.run, displayPath(r.place))
+			} else if r.test != "" && !hasTest(r.place, r.tree, r.test) {
+				missing++
+				t.Errorf("mise → Go: %s's task %s runs the test %s, and there's none in %s: was it renamed?", file, task.name, r.test, displayPath(r.place))
 			}
 		}
 	}
@@ -391,7 +381,7 @@ func checkMiseToGo(t testing.TB, file string, tasks []task, g goSide) {
 	t.Logf("mise → Go: %d tasks of %s, running %d places of Go: %d with no Go there; %d commands in neither form, not checked", len(tasks), file, places, missing, notGo)
 }
 
-// checkGoToMise checks Go to mise: every entry point of a binary under GO_CMD (commandsIn) is one a task runs. A
+// checkGoToMise checks Go to mise: every entry point of a binary under GoCmd (commandsIn) is one a task runs. A
 // binary itself, its main.go, is in use once any task runs it, in either form.
 func checkGoToMise(t testing.TB, file string, tasks []task, g goSide) {
 	t.Helper()
@@ -410,18 +400,18 @@ func checkGoToMise(t testing.TB, file string, tasks []task, g goSide) {
 			commands++
 			if !run[abs(place)] {
 				unrun++
-				t.Errorf("Go → mise: %s is a command of %s (GO_LAYOUT=%s), and no task of %s runs it", displayPath(place), b, g.layout, file)
+				t.Errorf("Go → mise: %s is a command of %s (GoLayout %s), and no task of %s runs it", displayPath(place), b, g.layout, file)
 			}
 		}
 	}
-	t.Logf("Go → mise: %d entry points under %s (GO_LAYOUT=%s), against the tasks of %s: %d no task runs", commands, g.cmd, g.layout, file, unrun)
+	t.Logf("Go → mise: %d entry points under %s (GoLayout %s), against the tasks of %s: %d no task runs", commands, g.cmd, g.layout, file, unrun)
 }
 
 // checkUsage checks the golden rule: a task declares the flags and arguments it takes in mise's usage spec, and its
 // run line passes each by name with mise's templates (usage.<name>), and nothing undeclared; then mise refuses anything
 // else before the Go runs. Within each task: every name its usage declares is in its run, every usage.<name> its run
 // uses is declared, nothing is read mise's old way, {{flag(…)}}, and no run line, a task's with usage or not, has POSIX
-// shell syntax, which breaks under Windows' cmd. And flags both ways, at each binary of GO_CMD: every flag a task
+// shell syntax, which breaks under Windows' cmd. And flags both ways, at each binary of GoCmd: every flag a task
 // running it declares is one its Go defines (flag.Bool("yes", …)), and every flag its Go defines is declared by such a
 // task. A task that takes nothing has no usage, and the Go refuses what it doesn't know.
 func checkUsage(t testing.TB, file string, tasks []task, g goSide) {
@@ -480,7 +470,7 @@ func checkUsage(t testing.TB, file string, tasks []task, g goSide) {
 			}
 		}
 	}
-	t.Logf("usage: %d tasks of %s with a usage, declaring %d flags of binaries; %d flags in the Go of GO_CMD", withUsage, file, flags, goFlags)
+	t.Logf("usage: %d tasks of %s with a usage, declaring %d flags of binaries; %d flags in the Go of GoCmd", withUsage, file, flags, goFlags)
 }
 
 // checkGoCallsMise checks the other mapping, Go that runs mise tasks: Go names a task in full, as a string
@@ -498,7 +488,7 @@ func checkGoCallsMise(t testing.TB, file string, tasks []task, callers string) {
 	}
 	files, _ := filepath.Glob(filepath.Join(callers, "*.go"))
 	if len(files) == 0 {
-		t.Errorf("GO_CALLERS=%s has no .go files: did the Go that runs %s move?", callers, file)
+		t.Errorf("GoCallers %s has no .go files: did the Go that runs %s move?", callers, file)
 		return
 	}
 	found, inFiles, wrong := 0, map[string]bool{}, 0
@@ -725,6 +715,26 @@ func isGo(place string) bool {
 		return false
 	}
 	return slices.ContainsFunc(entries, func(e os.DirEntry) bool { return !e.IsDir() && strings.HasSuffix(e.Name(), ".go") })
+}
+
+// hasTest reports whether the folder (and below it, for ./...) has the test func name(t *testing.T) in a _test.go.
+func hasTest(place string, tree bool, name string) bool {
+	re := regexp.MustCompile(`(?m)^func ` + regexp.QuoteMeta(name) + `\(\s*\w+ \*testing\.T\s*\)`)
+	found := false
+	filepath.WalkDir(place, func(p string, d os.DirEntry, err error) error {
+		switch {
+		case err != nil || found:
+			return filepath.SkipAll
+		case d.IsDir() && p != place && (!tree || d.Name() == "vendor" || d.Name() == "testdata" || d.Name() == "node_modules" || strings.HasPrefix(d.Name(), ".")):
+			return filepath.SkipDir
+		case !d.IsDir() && strings.HasSuffix(d.Name(), "_test.go"):
+			if b, err := os.ReadFile(p); err == nil && re.Match(b) {
+				found = true
+			}
+		}
+		return nil
+	})
+	return found
 }
 
 // hasGoBelow reports whether a folder holds Go anywhere below it, as go test ./... finds it: none in vendor, testdata or a

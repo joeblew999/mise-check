@@ -56,8 +56,8 @@ And in the template itself, as a person in a repo with greet does: `cd templates
 | `templates/.mise/tasks/greet.toml` | The numbered tasks, each one line, `go tool greet <command>`: `greet` (start here), `greet:03-init` … `greet:07-bye`, `greet:verify`, `greet:template`, `greet:show-*` | The tool's own steps, in the order a repo meets them |
 | `templates/.mise/config.toml` | Only has mise install the Go `go.mod` names | Nothing |
 | `templates/.github/workflows/greet.yml`, `.claude/`, `docs/greet/` | The repo's workflow (`mise run greet:verify`), Claude Code's hook and skill, and its docs: all written by `greet init`, never edited in a repo | greet's name |
-| `templates/main.go`, `main_test.go`, `mise.toml`, `README.md` | The template's little app, which imports the module half: `greet template` writes it into a repo with no Go program yet | The tool's own little example |
-| [templates.go](templates.go) | Embeds the template's two parts, `Tool` (the tool's files: init writes them) and `App` (the little app: template writes it). It's here, one level up, because the template's app is its own package | The file lists |
+| `templates/app/` (`main.go`, `main_test.go`), `templates/mise.toml`, `templates/README.md` | The template's little app, which imports the module half: `greet template` writes it into a repo with no Go program yet | The tool's own little example |
+| [templates/templates.go](templates/templates.go) | Embeds the template's two parts, `Tool` (the tool's files: init writes them) and `App` (the little app: template writes it). The template's only Go at its top, as mise-cloudflare's `templates.go` is; the app's Go is its own package, in `templates/app/` | The file lists |
 | [walk_test.go](walk_test.go) | The walk: the template's numbered tasks as steps, each checked; how a person makes a new repo; `TestSteps` (the steps are exactly the numbered tasks) | The tool's own steps and checks |
 | [mise_test.go](mise_test.go) | All a repo writes to use misecheck: one line | Nothing |
 

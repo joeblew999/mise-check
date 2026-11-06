@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
 // report is greet show --json: where the repo is, and what to run next.
 type report struct {
 	Version  string   `json:"version"`  // this build of greet: the module version go.mod pins
-	App      bool     `json:"app"`      // the repo has a Go program of its own (a main.go): the template's, or its own
+	App      bool     `json:"app"`      // the repo has a Go program of its own (main.go, or the template's app/main.go)
 	Problems []string `json:"problems"` // check's
 	Next     string   `json:"next"`     // the task to run next
 	Command  string   `json:"command"`  // the same without mise
@@ -20,8 +18,7 @@ type report struct {
 // the next one.
 func show(dir string, jsonOut bool) {
 	r := report{Version: buildVersion(), Problems: rules(dir)}
-	_, err := os.Stat(filepath.Join(dir, "main.go"))
-	r.App = err == nil
+	r.App = hasApp(dir)
 	switch {
 	case anyHas(r.Problems, "go tool greet init"):
 		r.Next, r.Command = "mise run greet:03-init", "go tool greet init"

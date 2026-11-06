@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joeblew999/mise-check/example"
+	"github.com/joeblew999/mise-check/example/templates"
 )
 
 // theirs are the template's files a repo may have of its own already: init writes them only when it has none.
@@ -21,7 +21,7 @@ func initRepo(dir string) {
 	if p, _ := goMod(dir); p == "" {
 		fail(errNoModule)
 	}
-	must(fs.WalkDir(example.Tool, ".", func(p string, d fs.DirEntry, err error) error {
+	must(fs.WalkDir(templates.Tool, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -30,7 +30,7 @@ func initRepo(dir string) {
 			fmt.Printf("✓ %s is the repo's own: left as it is\n", p)
 			return nil
 		}
-		b, err := fs.ReadFile(example.Tool, p)
+		b, err := fs.ReadFile(templates.Tool, p)
 		if err != nil {
 			return err
 		}
@@ -48,11 +48,11 @@ func initRepo(dir string) {
 // repo's own that doesn't run the hook.
 func stale(dir string) []string {
 	var out []string
-	fs.WalkDir(example.Tool, ".", func(p string, d fs.DirEntry, err error) error {
+	fs.WalkDir(templates.Tool, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || theirs[p] {
 			return err
 		}
-		want, _ := fs.ReadFile(example.Tool, p)
+		want, _ := fs.ReadFile(templates.Tool, p)
 		// Line endings aside: a Windows checkout of the repo may have \r\n where init wrote \n.
 		crlf := func(b []byte) string { return strings.ReplaceAll(string(b), "\r\n", "\n") }
 		b, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(p)))
@@ -64,8 +64,8 @@ func stale(dir string) []string {
 		}
 		return nil
 	})
-	if b, err := os.ReadFile(filepath.Join(dir, ".claude", "settings.json")); err == nil && !strings.Contains(string(b), example.HookFile) {
-		out = append(out, ".claude/settings.json doesn't run .claude/hooks/"+example.HookFile+": add its SessionStart entry (docs/greet/README.md)")
+	if b, err := os.ReadFile(filepath.Join(dir, ".claude", "settings.json")); err == nil && !strings.Contains(string(b), templates.HookFile) {
+		out = append(out, ".claude/settings.json doesn't run .claude/hooks/"+templates.HookFile+": add its SessionStart entry (docs/greet/README.md)")
 	}
 	return out
 }

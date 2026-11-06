@@ -36,12 +36,15 @@ code of its own skips `mise-check:template`, which never writes over a file anyw
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
 | `mise run mise-check:show-users` | to see which of the owner's repos use this one, and which are behind | which of the owner's repos use it, at what version, the behind ones marked |
 | `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |
+| `mise run mise-check:new-tool` | to start a new mise tool repo, with its binary, template, walks and CI | a new mise tool repo in an empty folder: mise-check at its release, copied and renamed for the module, its packages imported instead |
 | `mise run mise-check:show-version` | to say which mise-check this is | its version |
 | `mise run mise-check:show-help` | to list every command | every command and its flags |
 
 The four updates take `--no-major` (no major moves) and `--json` (one JSON document on stdout: every pin, its file,
 before and after, whether it moved and whether that was a major move; the tools' own output goes to stderr).
 `mise run mise-check`, `show`, `check`, `show-users` and `show-version` take `--json` too.
+`new-tool` takes the new repo's module, `github.com/<owner>/<name>`, in an empty folder, and `--from <folder>`: copy
+that checkout of mise-check instead of its release, to try a change before it is released.
 
 `mise run mise-check:show-users` finds the repos that use this one by their `go.mod` (its Go module) and their mise
 files (its binary). It reads them on GitHub, as Go's own index (pkg.go.dev's imported-by) counts no imports from tests, and mise pins aren't in

@@ -28,6 +28,7 @@ Each runs the mise-check command of its name (`mise run mise-check:check` runs `
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
 | `mise run mise-check:show-users` | to see which of the owner's repos use this one, and which are behind | which of the owner's repos use it, at what version, the behind ones marked |
 | `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |
+| `mise run mise-check:new-tool` | to start a new mise tool repo, with its binary, template, walks and CI | a new mise tool repo in an empty folder: mise-check at its release, copied and renamed for the module, its packages imported instead |
 | `mise run mise-check:show-version` | to say which mise-check this is | its version |
 | `mise run mise-check:show-help` | to list every command | every command and its flags |
 
@@ -36,6 +37,7 @@ Flags, each declared in the task's usage and passed by name:
 - `--json`: one JSON document on stdout instead of text, on `mise run mise-check`, `show`, `check`, the four updates,
   `show-users` and `show-version`. Read that, never the text: the text may change, the JSON keeps its fields. The
   updates' JSON is every pin with its file, `before`, `after`, `moved` and `major`.
+- `--from <folder>`: on new-tool, copy that checkout of mise-check instead of its release, to try a change before it is released. new-tool takes the new repo's module, `github.com/<owner>/<name>`, and runs in an empty folder.
 - `--no-major`: on the four updates, no major moves: packages within their ranges, Go modules within their major.
 
 A command given a flag it doesn't take refuses it. The updates never run in CI: CI only checks.

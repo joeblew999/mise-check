@@ -1,6 +1,7 @@
 # A new repo on each of the three operating systems, from the release just made: the walk on a new repo made the
 # README's way (an empty folder, mise-check init at the new tag, then mise-check:template), its numbered tasks each
-# checked: mise run new-repo:e2e --version <tag>. It runs after the release run
+# checked: mise run new-repo:e2e --version <tag>; and a new mise tool repo, mise-check new-tool at that tag, its own
+# root:verify run: mise run new-tool:e2e --version <tag>. It runs after the release run
 # has passed, so releases stay as fast as before, and by hand for any release. Shell steps only, as ci.yml.
 name: new-repo
 
@@ -25,7 +26,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -69,3 +70,8 @@ jobs:
       # release is what's tried, not a build of this checkout (tool:install).
       - name: A new repo, made the README's way at the release, walked (mise run new-repo:e2e --version)
         run: mise run --skip-deps new-repo:e2e --version "$VERSION"
+
+      # A new mise tool repo, made by mise-check new-tool at the release (copied from Go's module proxy), then its own
+      # root:verify. Here and not in ci.yml's root:verify: a tool repo new-tool makes has this walk too.
+      - name: A new mise tool repo, made by new-tool at the release, its own CI run (mise run new-tool:e2e --version)
+        run: mise run --skip-deps new-tool:e2e --version "$VERSION"

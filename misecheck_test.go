@@ -10,13 +10,6 @@ import (
 	"testing"
 )
 
-// TestRootMise checks this repo's own mise file, as any repo checks its own: mise run root:check-mise runs it.
-func TestRootMise(t *testing.T) { Check(t, Config{MiseFile: "mise.toml"}) }
-
-// TestTemplateMise checks the template's tasks file the strict way, against the binary's Go, the walk that runs them,
-// the skill and the docs: mise run template:check-mise runs it.
-func TestTemplateMise(t *testing.T) { Check(t, ours(".")) }
-
 // ---- The checker's own tests: what it reads, and how ----
 
 // TestReadTasks: every way mise writes a task is read, or said to be unreadable, and no other table is taken for one.

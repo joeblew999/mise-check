@@ -56,6 +56,11 @@ run = 'mise-check show-users{% if usage.json %} --json{% endif %}'
 description = "the template's little app, its go.mod and packages; it never writes over a file"
 run = "mise-check template"
 
+["mise-check:new-tool"]
+description = "a new mise tool repo in an empty folder: mise-check at its release, copied and renamed for the module, its packages imported instead"
+usage = 'arg "<module>" help="the new repo, github.com/<owner>/<name>: mise-check is renamed <name> in it"; flag "--from <folder>" help="copy this checkout of mise-check instead of its release"'
+run = 'mise-check new-tool{% if usage.from %} --from "{{usage.from}}"{% endif %} "{{usage.module}}"'
+
 ["mise-check:show-version"]
 description = "its version"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'

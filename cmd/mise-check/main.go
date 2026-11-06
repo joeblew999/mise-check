@@ -36,6 +36,7 @@ var commands = []command{
 	{"mise-check:update-go", "every go.mod's toolchain line and modules, majors too, their import paths rewritten", "to upgrade Go only"},
 	{"mise-check:show-users", "which of the owner's repos use it, at what version, the behind ones marked", "to see which of the owner's repos use this one, and which are behind"},
 	{"mise-check:template", "the template's little app, its go.mod and packages; it never writes over a file", "only in a repo with no Go program yet"},
+	{"mise-check:new-tool", "a new mise tool repo in an empty folder: mise-check at its release, copied and renamed for the module, its packages imported instead", "to start a new mise tool repo, with its binary, template, walks and CI"},
 	{"mise-check:show-version", "its version", "to say which mise-check this is"},
 	{"mise-check:show-help", "every command and its flags", "to list every command"},
 }
@@ -47,7 +48,7 @@ var help = func() string {
 	for _, c := range commands {
 		fmt.Fprintf(&b, "  %-38s %s\n", "mise run "+c.task, c.does)
 	}
-	b.WriteString("\nThe updates take --no-major: no major moves. --json, one JSON document on stdout instead of text: mise-check,\nshow, check, the updates, show-users, show-version. Start with mise run mise-check: it says what to run next.\n")
+	b.WriteString("\nnew-tool takes the new repo's module, github.com/<owner>/<name>, and --from <checkout>.\nThe updates take --no-major: no major moves. --json, one JSON document on stdout instead of text: mise-check,\nshow, check, the updates, show-users, show-version. Start with mise run mise-check: it says what to run next.\n")
 	return b.String()
 }()
 
@@ -60,15 +61,19 @@ func main() {
 	flags := flag.NewFlagSet("mise-check "+command, flag.ExitOnError)
 	jsonOut := flags.Bool("json", false, "print one JSON document on stdout instead of text")
 	noMajor := flags.Bool("no-major", false, "the updates: no major moves (packages within their ranges, Go modules within their major)")
+	from := flags.String("from", "", "new-tool: copy this checkout of mise-check instead of its release")
 	flags.Usage = func() { fmt.Fprint(os.Stderr, help) }
 	flags.Parse(args)
-	if flags.NArg() > 0 {
+	module := ""
+	if command == "new-tool" && flags.NArg() == 1 {
+		module = flags.Arg(0)
+	} else if flags.NArg() > 0 || command == "new-tool" {
 		flags.Usage()
 		os.Exit(2)
 	}
 	// A flag a command doesn't take is refused, not ignored: the tasks pass only their own, and so must anyone else.
 	takes := map[string][]string{"": {"json"}, "show": {"json"}, "check": {"json"}, "show-users": {"json"}, "show-version": {"json"},
-		"update": {"json", "no-major"}, "update-mise": {"json", "no-major"}, "update-packages": {"json", "no-major"}, "update-go": {"json", "no-major"}}
+		"update": {"json", "no-major"}, "update-mise": {"json", "no-major"}, "update-packages": {"json", "no-major"}, "update-go": {"json", "no-major"}, "new-tool": {"from"}}
 	flags.Visit(func(f *flag.Flag) {
 		if !slices.Contains(takes[command], f.Name) {
 			fmt.Fprintf(os.Stderr, "mise-check %s takes no --%s (mise-check show-help: every command and its flags)\n", command, f.Name)
@@ -111,6 +116,8 @@ func main() {
 		r.verify()
 	case "template":
 		r.template()
+	case "new-tool":
+		r.newTool(module, *from)
 	case "show-version":
 		showVersion(*jsonOut)
 	case "show-help":

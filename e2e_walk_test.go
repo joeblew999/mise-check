@@ -93,6 +93,29 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	return n
 }
 
+// TestWalkNewTool is a new mise tool repo, made as the README says: an empty folder with its own git, then mise-check
+// new-tool there, at this checkout's build (copying this checkout, --from) or the release -version names (copying that
+// release from Go's module proxy). Then its own CI, mise run root:verify, must pass: its misecheck on its tasks, skill
+// and docs, its tool tests, and its template and new-repo walks, all on its renamed binary (mise run new-tool:e2e).
+func TestWalkNewTool(t *testing.T) {
+	walk.OnlyByName(t)
+	top := walk.At(t, ".")
+	n := top.New("mise-new-tool")
+	at, from := "local", []string{"--from", top.Dir}
+	if *walk.Version != "" {
+		at, from = strings.TrimPrefix(*walk.Version, "v"), nil
+	}
+	n.Must("mise", append(append([]string{"exec", "github:joeblew999/mise-check@" + at, "--", "mise-check", "new-tool"}, from...), "github.com/joeblew999/mise-new-tool")...)
+	n.Pass("%s: an empty folder, its own git, mise-check new-tool at %s", n.Name, at)
+	for _, gone := range []string{"misecheck.go", "walk", filepath.Join("cmd", "mise-check")} {
+		if _, err := os.Stat(filepath.Join(n.Dir, gone)); err == nil {
+			t.Fatalf("%s: new-tool left %s", n.Name, gone)
+		}
+	}
+	n.Must("mise", "run", "root:verify")
+	n.Pass("%s: its own root:verify passes, what its CI runs", n.Name)
+}
+
 // TestUpdateTemplate is the update commands (updateOld) on the template, templates/, as it is: on a copy of it, so the
 // template itself never changes (mise run template:e2e-update).
 func TestUpdateTemplate(t *testing.T) {

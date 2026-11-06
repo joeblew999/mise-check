@@ -19,6 +19,8 @@
 #   new-repo: a new repo, made from nothing as docs/mise-check/README.md says, by the walk and gone after it
 #     mise run new-repo:e2e            the walk on it: init, check and show, each checked (--version: at a release)
 #     mise run new-repo:e2e-update     one given old pins of every kind (node, wrangler, Go modules, a major among them)
+#   new-tool: a new mise tool repo, made by mise-check new-tool, by the walk and gone after it
+#     mise run new-tool:e2e            its own root:verify must pass (--version: at a release)
 
 [settings]
 # go.mod's toolchain line is the Go pin; this makes mise install honour it.
@@ -98,3 +100,9 @@ run = 'go test . -run "^TestWalkNewRepo$" -count=1 -v -timeout 15m{% if usage.ve
 description = "TestUpdateNewRepo: a new repo, made as new-repo:e2e makes it, given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod); mise-check:update must move every one, chi to /v5 with its import rewritten, then mise-check:verify pass. Gone after it. After tool:install"
 depends = ["tool:install"]
 run = 'go test . -run "^TestUpdateNewRepo$" -count=1 -v -timeout 20m'
+
+[tasks."new-tool:e2e"]
+description = "TestWalkNewTool: a new mise tool repo, made by mise-check new-tool in an empty folder with its own git (at this checkout's build, copying this checkout, or the release --version names, copying it from Go's module proxy), then its own root:verify must pass: its misecheck, tool tests and walks, on its renamed binary. Gone after it. Not in root:verify, since a tool repo new-tool makes has it too and would make one again: new-repo.yml runs it after every release, on each OS; run it before pushing a change to new-tool. Its repo is joeblew999/mise-new-tool, empty on GitHub, so mise can list its releases. After tool:install"
+usage = 'flag "--version <version>" help="make it at this release of mise-check from GitHub, as mise exec does, instead of the build of this checkout"'
+depends = ["tool:install"]
+run = 'go test . -run "^TestWalkNewTool$" -count=1 -v -timeout 30m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'

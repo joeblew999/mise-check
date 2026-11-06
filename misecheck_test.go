@@ -139,16 +139,18 @@ func TestBroken(t *testing.T) {
 	pick := flags.Bool(`),
 			"defines the flag --loud"},
 		{"a flag added to a task's usage, not in its Go",
-			edit(tasksFile, `run = "mise-check show-version"`, "usage = 'flag \"--color\" help=\"c\"'\nrun = 'mise-check show-version{% if usage.color %} --color{% endif %}'"),
+			edit(tasksFile, `flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check show-version`, `flag "--json" help="one JSON document on stdout, instead of text"; flag "--color" help="c"'
+run = 'mise-check show-version{% if usage.color %} --color{% endif %}`),
 			"declares the flag --color"},
 		{"a flag declared, and its run doesn't pass it",
 			edit(tasksFile, `mise-check update-go{% if usage.pick %} --pick{% endif %}`, `mise-check update-go`),
 			"declares the flag --pick, and its run doesn't pass it"},
 		{"POSIX shell syntax, which Windows' cmd doesn't read",
-			edit(tasksFile, `run = "mise-check show-version"`, `run = "GREETING=1 mise-check show-version"`),
+			edit(tasksFile, `run = "mise-check show-help"`, `run = "GREETING=1 mise-check show-help"`),
 			"has POSIX shell syntax"},
 		{"a run over several lines: logic that belongs in Go",
-			edit(tasksFile, `run = "mise-check show-version"`, "run = \"\"\"\nmise-check show-version\n\"\"\""),
+			edit(tasksFile, `run = "mise-check show-help"`, "run = \"\"\"\nmise-check show-help\n\"\"\""),
 			"isn't one line"},
 		{"a command added to the binary, and no task runs it",
 			func(dir string) {

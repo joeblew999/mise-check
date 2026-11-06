@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 )
 
@@ -29,11 +30,12 @@ And:
   mise run mise-check:update-mise       the mise tools, in the repo's mise files
   mise run mise-check:update-packages   the Node packages, package.json and its lockfile (aube)
   mise run mise-check:update-go         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
-                                        each: --pick (ask for each one), --no-major (no major moves)
-  mise run mise-check:show-users        which of the owner's repos use this one (go.mod, mise pins), at what version
+                                        each: --pick (ask for each one), --no-major (no major moves), --json
+  show and check take --json too: one JSON document on stdout, instead of text
+  mise run mise-check:show-users        which of the owner's repos use this one (go.mod, mise pins), at what version (--json)
   mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
   mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
-  mise run mise-check:show-version   this build's version
+  mise run mise-check:show-version   this build's version (--json)
   mise run mise-check:show-help      this
 `
 
@@ -53,6 +55,15 @@ func main() {
 		flags.Usage()
 		os.Exit(2)
 	}
+	// A flag a command doesn't take is refused, not ignored: the tasks pass only their own, and so must anyone else.
+	takes := map[string][]string{"": {"json"}, "show": {"json"}, "check": {"json"}, "show-users": {"json"}, "show-version": {"json"},
+		"update": {"json", "pick", "no-major"}, "update-mise": {"json", "pick", "no-major"}, "update-packages": {"json", "pick", "no-major"}, "update-go": {"json", "pick", "no-major"}}
+	flags.Visit(func(f *flag.Flag) {
+		if !slices.Contains(takes[command], f.Name) {
+			fmt.Fprintf(os.Stderr, "mise-check %s takes no --%s (mise-check show-help: every command and its flags)\n", command, f.Name)
+			os.Exit(2)
+		}
+	})
 	dir, err := os.Getwd()
 	must(err)
 	r := repo{dir: dir}
@@ -90,7 +101,7 @@ func main() {
 	case "template":
 		r.template()
 	case "show-version":
-		showVersion()
+		showVersion(*jsonOut)
 	case "show-help":
 		showHelp()
 	default:

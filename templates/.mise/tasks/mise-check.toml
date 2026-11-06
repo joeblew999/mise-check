@@ -59,7 +59,8 @@ run = "mise-check template"
 
 ["mise-check:show-version"]
 description = "This mise-check's version"
-run = "mise-check show-version"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check show-version{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show-help"]
 description = "Every command"

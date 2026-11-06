@@ -32,9 +32,9 @@ goreleaser = "2.20.0"   # the release's binaries (.goreleaser.yaml)
 "go:github.com/oligot/go-mod-upgrade" = "0.13.0"   # the Go module upgrader update-go runs: the pin of cmd/mise-check's goModUpgrade (TestPin), here so update-mise moves it and no importer's go.mod carries it
 
 [tasks."root:verify"]
-description = "Everything GitHub's CI runs on this repo (ci.yml runs exactly this), here the same: tool:test, root:check-mise and template:check-mise at once, then the walks one after the other (template:e2e, template:e2e-update, new-repo:e2e, new-repo:e2e-update), as they share the machine's one aube store: two installing at once read each other's half-written packages"
+description = "Everything GitHub's CI runs on this repo (ci.yml runs exactly this), here the same: tool:test, root:check-mise and template:check-mise at once, then the walks one after the other (template:e2e, template:e2e-update, new-repo:e2e), as they share the machine's one aube store: two installing at once read each other's half-written packages"
 depends = ["tool:test", "root:check-mise", "template:check-mise"]
-run = "mise run template:e2e-update && mise run new-repo:e2e && mise run new-repo:e2e-update"
+run = "mise run template:e2e-update && mise run new-repo:e2e"
 
 [tasks."root:check-mise"]
 description = "misecheck on this repo's own mise.toml, the file this task is in: each task one line, the Go it runs there, its usage passed by name, no POSIX shell syntax, so every task here runs on Windows too"

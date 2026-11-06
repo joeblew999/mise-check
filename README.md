@@ -103,19 +103,19 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | Task | What | When |
 |---|---|---|
 | `root:verify` | Everything GitHub's CI runs, the same command: the checks at once, then the walks one after the other (they share the machine's aube store) | Before every push |
-| `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
-| `template:check-mise` | `TestMise` on the template's tasks against the binary's Go, the walk that runs them and the skill, both ways | After a change to a task, a command or the skill |
-| `template:e2e` | The walk on the template, where it is | After every change |
-| `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
-| `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
-| `template:e2e-update` | A copy of the template as it is, in a folder of its own, with the go.mod `mise-check:template` writes, given old pins of every kind: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
-| `new-repo:e2e-update` | A new repo given old pins of every kind: `update-mise`, `update-packages` and `update-go` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
+| `root:update` | This repo's own pins (`mise.toml`'s tools, `go.mod`'s modules) at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
+| `root:show-users` | Which of joeblew999's repos use mise-check (go.mod, mise pins), at what version, the behind ones marked | `tool:release` runs it after every release |
+| `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
 | `tool:release` | A release from the commit checked out, as `release.yml` runs it; `--dry-run` tags and publishes nothing | Never by hand: a merge to main runs it |
-| `root:show-users` | Which of joeblew999's repos use mise-check (go.mod, mise pins), at what version, the behind ones marked | `tool:release` runs it after every release |
-| `root:update` | This repo's own pins (`mise.toml`'s tools, `go.mod`'s modules) at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
+| `template:check-mise` | `TestMise` on the template's tasks against the binary's Go, the walk that runs them and the skill, both ways | After a change to a task, a command or the skill |
+| `template:e2e` | The walk on the template, where it is | After every change |
+| `template:e2e-update` | A copy of the template as it is, in a folder of its own, with the go.mod `mise-check:template` writes, given old pins of every kind: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
+| `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
+| `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
+| `new-repo:e2e-update` | A new repo given old pins of every kind: `update-mise`, `update-packages` and `update-go` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 
 ### Tests
 

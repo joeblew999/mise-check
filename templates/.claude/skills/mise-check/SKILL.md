@@ -18,13 +18,13 @@ Each runs the mise-check command of its name (`mise run mise-check:check` runs `
 | Task | Run it | What it does |
 |---|---|---|
 | `mise run mise-check` | first, and whenever you're unsure | what's done for the repo, and what to run next |
-| `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, this skill, the docs, the hook |
-| `mise run mise-check:check` | after any change to a mise file or a skill | the repo's rules: its mise files by misecheck and its skills against their tasks (below), mise-check's files current, its pin |
-| `mise run mise-check:show` | to see where the repo is | the same as `mise run mise-check` |
-| `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's `setup` and `test`, then check |
+| `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook |
+| `mise run mise-check:check` | after any change to a mise file or a skill | the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin |
+| `mise run mise-check:show` | to see where the repo is | the same as mise run mise-check |
+| `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
 | `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order |
 | `mise run mise-check:update-mise` | to upgrade the mise tools only | the tools in the repo's mise files |
-| `mise run mise-check:update-packages` | to upgrade the Node packages only | `package.json` and its lockfile, through aube |
+| `mise run mise-check:update-packages` | to upgrade the Node packages only | package.json and its lockfile, through aube |
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
 | `mise run mise-check:show-users` | after a release of this repo | which of the owner's repos use it, at what version, the behind ones marked |
 | `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |

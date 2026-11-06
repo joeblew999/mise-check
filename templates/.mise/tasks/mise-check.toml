@@ -5,62 +5,62 @@
 # Written by mise-check (github.com/joeblew999/mise-check): don't edit it. .mise/config.toml pins its version.
 
 ["mise-check"]
-description = "Start here: what's done for this repo, and what to run next (mise run mise-check:show-help: every command)"
+description = "what's done for the repo, and what to run next"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check{% if usage.json %} --json{% endif %}'
 
 ["mise-check:init"]
-description = "mise-check's files written into the repo again, after upgrading it (the first time, before these tasks: mise exec github:joeblew999/mise-check@latest -- mise-check init)"
+description = "writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook"
 run = "mise-check init"
 
 ["mise-check:check"]
-description = "The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), every skill against its tasks (.claude/skills/<namespace>/SKILL.md names every task and flag of <namespace>, and only tasks there are), init's files current, and .mise/config.toml pinning mise-check"
+description = "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check check{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show"]
-description = "What's done for this repo, and what to run next"
+description = "the same as mise run mise-check"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show{% if usage.json %} --json{% endif %}'
 
 ["mise-check:verify"]
-description = "What the repo's GitHub workflow runs: each pin consistent with what pins it (the packages with their lockfile, aube install --frozen-lockfile; every go.mod with its code, go mod tidy -diff), its own setup and test tasks if it has them, then check. The same here as on GitHub"
+description = "what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check"
 run = "mise-check verify"
 
 ["mise-check:update"]
-description = "Every pin at its newest release, in one go: update-mise, update-packages and update-go, in that order. It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them (a major move can break)"
+description = "every pin at its newest: the three below, in order"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-mise"]
-description = "The mise tools at their newest releases, in the repo's mise files (mise upgrade --bump), mise-check's own pin among them, and nothing else"
+description = "the tools in the repo's mise files"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update-mise{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-packages"]
-description = "The Node packages at their newest releases, package.json and whichever lockfile the repo has (aube update, aube pinned in the repo's mise), and nothing else"
+description = "package.json and its lockfile, through aube"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update-packages{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-go"]
-description = "Go at its newest, in every go.mod: its toolchain line, and its modules, majors too, their import paths rewritten (go mod tidy, go-mod-upgrade, go mod tidy), and nothing else"
+description = "every go.mod's toolchain line and modules, majors too, their import paths rewritten"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update-go{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show-users"]
-description = "Which of the owner's repos on GitHub use this one: its Go module in their go.mod, its binary in their mise files, at the versions each pins, against the newest release, the behind ones marked. Needs a token for private repos (GITHUB_TOKEN, GH_TOKEN, or gh's login)"
+description = "which of the owner's repos use it, at what version, the behind ones marked"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show-users{% if usage.json %} --json{% endif %}'
 
 ["mise-check:template"]
-description = "The template's little app, in a repo with no Go program yet: app/, the mise.toml that runs and tests it, and README.md named for the repo's folder. It never writes over a file"
+description = "the template's little app, its go.mod and packages; it never writes over a file"
 run = "mise-check template"
 
 ["mise-check:show-version"]
-description = "This mise-check's version"
+description = "its version"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show-version{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show-help"]
-description = "Every command"
+description = "every command and its flags"
 run = "mise-check show-help"

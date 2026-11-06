@@ -17,29 +17,39 @@ import (
 	"strings"
 )
 
-const help = `This repo's pins and mise tasks, with mise-check. Each command is a task: mise run mise-check:<command>
-runs mise-check <command>.
+// command is one command of mise-check as its task runs it: the task, what the command does and when to run it, each
+// one short line. This table is the one source of those lines: show-help prints them, and TestCommands holds the
+// template's tasks file (each task's description is what it does), its skill and its docs page (each task's row is
+// both) to them, word for word.
+type command struct{ task, does, when string }
 
-The repo (mise run mise-check says what to run next):
-  mise run mise-check:init               mise-check's files written into the repo (again, after upgrading)
-  mise run mise-check:check              the repo's rules: its mise files by misecheck, its skills, mise-check's files, its pin
-  mise run mise-check:show               what's done, and what to run next (mise run mise-check, too)
+// commands are every command, as the template's tasks file has them, in its order.
+var commands = []command{
+	{"mise-check", "what's done for the repo, and what to run next", "first, and whenever you're unsure"},
+	{"mise-check:init", "writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook", "after upgrading mise-check"},
+	{"mise-check:check", "the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin", "after any change to a mise file or a skill"},
+	{"mise-check:show", "the same as mise run mise-check", "to see where the repo is"},
+	{"mise-check:verify", "what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check", "before every push"},
+	{"mise-check:update", "every pin at its newest: the three below, in order", "when the person asks to upgrade everything"},
+	{"mise-check:update-mise", "the tools in the repo's mise files", "to upgrade the mise tools only"},
+	{"mise-check:update-packages", "package.json and its lockfile, through aube", "to upgrade the Node packages only"},
+	{"mise-check:update-go", "every go.mod's toolchain line and modules, majors too, their import paths rewritten", "to upgrade Go only"},
+	{"mise-check:show-users", "which of the owner's repos use it, at what version, the behind ones marked", "after a release of this repo"},
+	{"mise-check:template", "the template's little app, its go.mod and packages; it never writes over a file", "only in a repo with no Go program yet"},
+	{"mise-check:show-version", "its version", "to say which mise-check this is"},
+	{"mise-check:show-help", "every command and its flags", "to list every command"},
+}
 
-The updates, each pin at its newest release (--no-major: no major moves):
-  mise run mise-check:update             all three below, in order
-  mise run mise-check:update-mise        the mise tools, in the repo's mise files
-  mise run mise-check:update-packages    the Node packages, package.json and its lockfile (aube)
-  mise run mise-check:update-go          Go in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
-
-And:
-  mise run mise-check:verify             what the repo's GitHub workflow runs: each pin consistent, setup, test, check
-  mise run mise-check:show-users         which of the owner's repos use this one, at what version
-  mise run mise-check:template           the template's little app, in a repo with no Go program yet: it never writes over a file
-  mise run mise-check:show-version       this build's version
-  mise run mise-check:show-help          this
-
---json, one JSON document on stdout instead of text: show, check, the updates, show-users, show-version.
-`
+// help is show-help's text: every command, from commands, and the flags.
+var help = func() string {
+	var b strings.Builder
+	b.WriteString("This repo's pins and mise tasks, with mise-check. Each command is a task, mise run mise-check:<command>:\n\n")
+	for _, c := range commands {
+		fmt.Fprintf(&b, "  %-38s %s\n", "mise run "+c.task, c.does)
+	}
+	b.WriteString("\nThe updates take --no-major: no major moves. --json, one JSON document on stdout instead of text: mise-check,\nshow, check, the updates, show-users, show-version. Start with mise run mise-check: it says what to run next.\n")
+	return b.String()
+}()
 
 func main() {
 	args := os.Args[1:]

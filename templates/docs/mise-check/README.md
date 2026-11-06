@@ -21,37 +21,35 @@ mise run mise-check                                                # what's done
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
 code of its own skips `mise-check:template`, which never writes over a file anyway.
 
-## The steps
+## The tasks
 
-| Task | What |
-|---|---|
-| `mise run mise-check:init` | mise-check's files written into the repo again, after upgrading it |
-| `mise run mise-check:check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), every skill against its tasks (`.claude/skills/<namespace>/SKILL.md` names every task and flag of `<namespace>`, and only tasks there are), init's files current, `.mise/config.toml` pinning mise-check |
-| `mise run mise-check:show` | what's done, and what to run next (`mise run mise-check` too) |
+| Task | Run it | What it does |
+|---|---|---|
+| `mise run mise-check` | first, and whenever you're unsure | what's done for the repo, and what to run next |
+| `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook |
+| `mise run mise-check:check` | after any change to a mise file or a skill | the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its pin |
+| `mise run mise-check:show` | to see where the repo is | the same as mise run mise-check |
+| `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
+| `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order |
+| `mise run mise-check:update-mise` | to upgrade the mise tools only | the tools in the repo's mise files |
+| `mise run mise-check:update-packages` | to upgrade the Node packages only | package.json and its lockfile, through aube |
+| `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
+| `mise run mise-check:show-users` | after a release of this repo | which of the owner's repos use it, at what version, the behind ones marked |
+| `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |
+| `mise run mise-check:show-version` | to say which mise-check this is | its version |
+| `mise run mise-check:show-help` | to list every command | every command and its flags |
 
+The four updates take `--no-major` (no major moves) and `--json` (one JSON document on stdout: every pin, its file,
+before and after, whether it moved and whether that was a major move; the tools' own output goes to stderr).
+`mise run mise-check`, `show`, `check`, `show-users` and `show-version` take `--json` too.
 
-Then, whenever you want pins moved, each task named for what it acts on:
-
-| Task | Acts on |
-|---|---|
-| `mise run mise-check:update` | all three below, in order |
-| `mise run mise-check:update-mise` | the mise tools, in the repo's mise files |
-| `mise run mise-check:update-packages` | the Node packages: `package.json` and its lockfile, through aube |
-| `mise run mise-check:update-go` | Go, in every `go.mod`: its toolchain line and modules, majors too |
-
-Each takes `--no-major` (no major moves) and `--json`
-(one JSON document on stdout: every pin, its file, before and after, whether it moved and whether that was a major
-move; the tools' own output goes to stderr). `show`, `check` and `show-users` take `--json` too.
-
-And `mise run mise-check:show-users`: which of the owner's repos on GitHub use this one (its Go module in their
-`go.mod`, its binary in their mise files), at what version, the ones behind its newest release marked. It reads the
-repos on GitHub, as Go's own index (pkg.go.dev's imported-by) counts no imports from tests, and mise pins aren't in
+`mise run mise-check:show-users` finds the repos that use this one by their `go.mod` (its Go module) and their mise
+files (its binary). It reads them on GitHub, as Go's own index (pkg.go.dev's imported-by) counts no imports from tests, and mise pins aren't in
 any index; private repos need a token (`GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth login`).
 
-And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs on GitHub: first each kind of pin checked
+`mise run mise-check:verify` is what `.github/workflows/mise-check.yml` runs on GitHub: first each kind of pin checked
 consistent with what pins it, as the updates leave them, then the repo's own `setup` and `test` tasks if it has them,
-then check), `mise run mise-check:template`, `mise run mise-check:show-version`,
-`mise run mise-check:show-help`.
+then check.
 
 ## What the updates run
 

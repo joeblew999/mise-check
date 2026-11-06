@@ -3,32 +3,50 @@ package main
 import (
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// TestHelp: show-help names every task of the template's tasks file, as mise run <task>, and only tasks there are, so
-// the help a person reads covers everything the binary can do, as the skill and the docs page do (template:check-mise).
-func TestHelp(t *testing.T) {
+// TestCommands holds everything that describes the commands to commands, the one source of their lines, word for
+// word: the template's tasks file has exactly its tasks, in its order, each task's description what it does; its skill
+// and its docs page each have a row for every task, | `mise run <task>` | <when> | <does> |; and show-help names each.
+// misecheck (template:check-mise) holds the tasks to the Go they run and the skill to the tasks' names and flags.
+func TestCommands(t *testing.T) {
 	b, err := os.ReadFile("../../templates/.mise/tasks/mise-check.toml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tasks := map[string]bool{}
-	for _, m := range regexp.MustCompile(`(?m)^\["([^"]+)"\]$`).FindAllStringSubmatch(string(b), -1) {
-		tasks[m[1]] = true
+	var tasks []string
+	descs := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^\["([^"]+)"\]\ndescription = "([^"]*)"`).FindAllStringSubmatch(string(b), -1) {
+		tasks = append(tasks, m[1])
+		descs[m[1]] = m[2]
 	}
-	for task := range tasks {
-		if !regexp.MustCompile(`mise run ` + regexp.QuoteMeta(task) + `(\s|$)`).MatchString(help) {
-			t.Errorf("show-help doesn't name the task %s: add it, with what it does", task)
+	var ours []string
+	for _, c := range commands {
+		ours = append(ours, c.task)
+		if descs[c.task] != c.does {
+			t.Errorf("the tasks file's %s says %q; commands says it %q: make them one", c.task, descs[c.task], c.does)
 		}
 	}
-	for _, m := range regexp.MustCompile(`mise run (mise-check(?::[a-z0-9-]+)?)`).FindAllStringSubmatch(help, -1) {
-		if !tasks[m[1]] {
-			t.Errorf("show-help names %s, which isn't a task of the template's tasks file", m[1])
+	if !slices.Equal(tasks, ours) {
+		t.Errorf("the tasks file's tasks are %v; commands has %v: the same, in the same order", tasks, ours)
+	}
+	for _, page := range []string{"../../templates/.claude/skills/mise-check/SKILL.md", "../../templates/docs/mise-check/README.md"} {
+		b, err := os.ReadFile(page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range commands {
+			if row := "| `mise run " + c.task + "` | " + c.when + " | " + c.does + " |"; !strings.Contains(string(b), row) {
+				t.Errorf("%s has no row %s", page, row)
+			}
 		}
 	}
-	if !strings.Contains(help, "--json") || !strings.Contains(help, "--no-major") {
-		t.Error("show-help doesn't name --json and --no-major, the flags the tasks take")
+	for _, c := range commands {
+		if !strings.Contains(help, "mise run "+c.task+" ") {
+			t.Errorf("show-help doesn't name %s", c.task)
+		}
 	}
 }

@@ -47,6 +47,7 @@ func TestToolRelease(t *testing.T) {
 		t.Fatalf("go list -m: %v", err)
 	}
 	runShown(t, []string{"GOPROXY=https://proxy.golang.org", "GOFLAGS=-mod=mod"}, "go", "list", "-m", strings.TrimSpace(string(out))+"@"+tag)
+	runShown(t, nil, "mise", "run", "root:show-users") // the owner's repos that could move to it
 }
 
 // dryRunFlag is mise run tool:release --dry-run, passed as the test's flag (go test … -args -dry-run).

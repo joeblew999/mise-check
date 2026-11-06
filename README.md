@@ -167,6 +167,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
 | `tool:release` | A release from the commit checked out, as `release.yml` runs it; `--dry-run` tags and publishes nothing | Never by hand: a merge to main runs it |
+| `root:show-users` | Which of joeblew999's repos use mise-check (go.mod, mise pins), at what version, the behind ones marked | `tool:release` runs it after every release |
 | `root:update` | This repo's own pins (`mise.toml`'s tools, `go.mod`'s modules) at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
 
 ### Tests
@@ -214,7 +215,7 @@ on any machine:
   template) merged to main: `tool:release`. It takes the commit's `v*` tag or tags the next patch version,
   [goreleaser](.goreleaser.yaml) puts the `mise-check` binary for macOS, Linux and Windows on the release, a new repo
   made at that release is walked (`new-repo:e2e --version`), and the version goes on proxy.golang.org, so `go get`
-  and pkg.go.dev have it at once. So the release is always main: the binary and the packages are one version.
+  and pkg.go.dev have it at once; then `root:show-users` lists the repos that could move to it. So the release is always main: the binary and the packages are one version.
 
 This README is the one place for all of it, for people and agents alike: CLAUDE.md only loads it (`@README.md`).
 

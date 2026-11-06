@@ -44,6 +44,11 @@ description = "Go at its newest, in every go.mod: its toolchain line, and its mo
 usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
 run = 'mise-check update-go{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
 
+["mise-check:show-users"]
+description = "Which of the owner's repos on GitHub use this one: its Go module in their go.mod, its binary in their mise files, at the versions each pins, against the newest release, the behind ones marked. Needs a token for private repos (GITHUB_TOKEN, GH_TOKEN, or gh's login)"
+usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
+run = 'mise-check show-users{% if usage.json %} --json{% endif %}'
+
 ["mise-check:verify"]
 description = "What the repo's GitHub workflow runs: its own setup and test tasks, if it has them, then check. The same here as on GitHub"
 run = "mise-check verify"

@@ -13,6 +13,7 @@
 #                              them): mise-check:update moves them all, then verify
 #   mise run template:update   the template's own pins at their newest, by its own task (mise-check:update)
 #   mise run tool:release      a release from the commit checked out, as release.yml runs it (--dry-run)
+#   mise run root:show-users   which of joeblew999's repos use mise-check, at what version (after every release)
 #   mise run root:update       this repo's own pins at their newest, by the binary's own update, from source
 
 [settings]
@@ -85,7 +86,7 @@ description = "This repo's own pins at their newest releases, by the binary's ow
 run = "go run ./cmd/mise-check update"
 
 [tasks."tool:release"]
-description = "A release of mise-check from the commit checked out, as release.yml runs it on GitHub: the commit's v* tag, or the next patch version tagged and pushed; goreleaser's binaries on that tag's release; a new repo made at it and walked (new-repo:e2e --version); the version on proxy.golang.org. --dry-run tags and publishes nothing (a goreleaser snapshot into dist/). After tool:test"
+description = "A release of mise-check from the commit checked out, as release.yml runs it on GitHub: the commit's v* tag, or the next patch version tagged and pushed; goreleaser's binaries on that tag's release; a new repo made at it and walked (new-repo:e2e --version); the version on proxy.golang.org; then root:show-users, the repos that could move to it. --dry-run tags and publishes nothing (a goreleaser snapshot into dist/). After tool:test"
 usage = 'flag "--dry-run" help="tag and publish nothing: goreleaser builds a snapshot into dist/"'
 depends = ["tool:test"]
 run = 'go test . -run "^TestToolRelease$" -count=1 -v -timeout 30m{% if usage.dry_run %} -args -dry-run{% endif %}'
@@ -94,3 +95,7 @@ run = 'go test . -run "^TestToolRelease$" -count=1 -v -timeout 30m{% if usage.dr
 description = "Everything GitHub's CI runs on this repo (ci.yml runs exactly this), here the same: tool:test, root:check-mise and template:check-mise at once, then the walks one after the other (template:e2e, template:e2e-update, new-repo:e2e, new-repo:e2e-update), as they share the machine's one aube store: two installing at once read each other's half-written packages"
 depends = ["tool:test", "root:check-mise", "template:check-mise"]
 run = "mise run template:e2e-update && mise run new-repo:e2e && mise run new-repo:e2e-update"
+
+[tasks."root:show-users"]
+description = "Which of the owner's repos on GitHub use mise-check, by the binary's own show-users, from source: its Go module in their go.mod, its binary in their mise files, at the versions each pins, the ones behind the newest release marked. tool:release runs it after every release"
+run = "go run ./cmd/mise-check show-users"

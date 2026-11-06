@@ -39,6 +39,11 @@ Then, whenever you want pins moved, each task named for what it acts on:
 
 Each takes `--pick` (asked for each one, with the picker of each tool) and `--no-major` (no major moves).
 
+And `mise run mise-check:show-users`: which of the owner's repos on GitHub use this one (its Go module in their
+`go.mod`, its binary in their mise files), at what version, the ones behind its newest release marked. It reads the
+repos on GitHub, as Go's own index (pkg.go.dev's imported-by) counts no imports from tests, and mise pins aren't in
+any index; private repos need a token (`GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth login`).
+
 And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs on GitHub: the repo's own `setup` and
 `test` tasks if it has them, then check), `mise run mise-check:template`, `mise run mise-check:show-version`,
 `mise run mise-check:show-help`.

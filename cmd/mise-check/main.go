@@ -30,6 +30,7 @@ And:
   mise run mise-check:update-packages   the Node packages, package.json and its lockfile (aube)
   mise run mise-check:update-go         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
                                         each: --pick (ask for each one), --no-major (no major moves)
+  mise run mise-check:show-users        which of the owner's repos use this one (go.mod, mise pins), at what version
   mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
   mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
   mise run mise-check:show-version   this build's version
@@ -79,6 +80,8 @@ func main() {
 		case "update-go":
 			r.updateGo(o)
 		}
+	case "show-users":
+		r.showUsers(*jsonOut)
 	case "verify":
 		r.verify()
 	case "template":

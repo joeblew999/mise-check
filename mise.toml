@@ -41,7 +41,7 @@ description = "misecheck on this repo's own mise.toml, the file this task is in:
 run = 'go test . -run "^TestRootMise$" -count=1 -v'
 
 [tasks."root:update"]
-description = "This repo's own pins at their newest releases, by the binary's own update, from source: go.mod's Go and modules (go-mod-upgrade's tool line among them: then TestPin says to move cmd/mise-check's pin of it too). Then tool:test and the walks prove it"
+description = "This repo's own pins at their newest releases, by the binary's own update, from source: mise.toml's tools and go.mod's Go and modules (go-mod-upgrade's pin in mise.toml among them: then TestPin says to move cmd/mise-check's pin of it too). Then tool:test and the walks prove it"
 run = "go run ./cmd/mise-check update"
 
 [tasks."root:show-users"]

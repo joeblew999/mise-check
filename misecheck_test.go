@@ -205,8 +205,13 @@ func copyTree(t *testing.T, from, to string) {
 			return err
 		}
 		rel, _ := filepath.Rel(from, p)
-		if d.IsDir() {
+		switch {
+		case d.IsDir() && d.Name() == "node_modules": // installed packages (the walk's setup), not the template
+			return filepath.SkipDir
+		case d.IsDir():
 			return os.MkdirAll(filepath.Join(to, rel), 0o755)
+		case d.Type()&os.ModeSymlink != 0:
+			return nil
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {

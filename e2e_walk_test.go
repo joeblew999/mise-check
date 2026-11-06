@@ -1,9 +1,10 @@
-// Package e2e is mise-check's end-to-end test, on its own walk package (github.com/joeblew999/mise-check/walk), as
+// mise-check's end-to-end test, at the top of the repo as mise-cloudflare's is (package misecheck_test, as the
+// package misecheck is the folder's own), on its own walk package (github.com/joeblew999/mise-check/walk), as
 // mise-cloudflare's is: the template's numbered tasks through the repo's own mise file, on the template where it is
 // (mise run template:e2e) and on a new repo made from nothing as docs/mise-check/README.md says (mise run
 // new-repo:e2e); and update on a new repo given old pins of every kind, each moved (mise run new-repo:e2e-update).
 // Without REPO_PATH every test here skips, so go test ./... never walks.
-package e2e
+package misecheck_test
 
 import (
 	"os"
@@ -21,7 +22,7 @@ import (
 var miseCheckWalk = walk.Walk[*walker]{Steps: steps, New: newRepo, Prepare: withGo, Of: func(r walk.Repo) *walker { return &walker{r} }}
 
 func TestWalk(t *testing.T)  { miseCheckWalk.Run(t) }
-func TestSteps(t *testing.T) { walk.CheckSteps(t, "../templates/.mise/tasks/mise-check.toml", steps) }
+func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/mise-check.toml", steps) }
 
 // walker is mise-check's walk of a repo: what each step's Check is given.
 type walker struct{ walk.Repo }
@@ -97,7 +98,7 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 func TestUpdate(t *testing.T) {
 	path := os.Getenv("REPO_PATH")
 	if path == "" || os.Getenv("E2E_UPDATE") != "true" {
-		t.Skip("mise run new-repo:e2e-update runs it (REPO_PATH=../templates E2E_UPDATE=true)")
+		t.Skip("mise run new-repo:e2e-update runs it (REPO_PATH=templates E2E_UPDATE=true)")
 	}
 	n := newRepo(walk.At(t, path), "")
 	n.SetUp()

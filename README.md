@@ -142,7 +142,7 @@ This repo is two things, kept apart:
 | | What | Where |
 |---|---|---|
 | **For other repos** | The `mise-check` binary and the template, a whole repo you can drop anywhere and run, whose tool half `init` writes into a repo (its tasks, its check workflow, its Claude Code hook and skill, its docs, its `.gitignore`); and the two packages, `misecheck` and `walk` | [templates/](templates/), [cmd/mise-check/](cmd/mise-check/), [misecheck.go](misecheck.go), [walk/](walk/) |
-| **For this repo** | The tasks for working on it, its tests, its CI. This README | [mise.toml](mise.toml), [e2e/](e2e/), the `*_test.go`, [.github/workflows/](.github/workflows/) |
+| **For this repo** | The tasks for working on it, its tests, its CI. This README | [mise.toml](mise.toml), the `*_test.go` at the top, [.github/workflows/](.github/workflows/) |
 
 Nothing for this repo is ever in `templates/`, and nothing in `templates/` is this repo's own. Everything is driven
 from this repo's [mise.toml](mise.toml), run at the top, and each task runs what it needs first: run the furthest you
@@ -155,7 +155,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 
 | Task | What | When |
 |---|---|---|
-| `tool:test` | `go vet` and the Go tests: the checker (the template broken nine ways), the walk, the binary (none of them walk) | After every change |
+| `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
 | `template:check-mise` | `TestMise` on the template's tasks against the binary's Go and the walk that runs them, both ways | After a change to a task or a command |
 | `template:e2e` | The walk on the template, where it is | After every change |
@@ -164,11 +164,12 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `new-repo:e2e-update` | A new repo given old pins of every kind: `mise-update`, `packages-update` and `go-update` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
-| `root:update` | This repo's own pins at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
+| `tool:release` | A release from the commit checked out, as `release.yml` runs it; `--dry-run` tags and publishes nothing | Never by hand: a merge to main runs it |
+| `root:update` | This repo's own pins (`mise.toml`'s tools, `go.mod`'s modules) at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
 
 ### Tests
 
-**The walk** ([e2e/walk_test.go](e2e/walk_test.go)), on this repo's own `walk`. A repo's steps are its numbered
+**The walk** ([e2e_walk_test.go](e2e_walk_test.go)), on this repo's own `walk`. A repo's steps are its numbered
 tasks, `mise-check:03-init`, `04-check` and `05-show`
 ([templates/.mise/tasks/mise-check.toml](templates/.mise/tasks/mise-check.toml)), after steps 00 to 02 (the repo's
 git, `mise install`, its own `setup`). One name all the way through: `mise-check:04-check` runs `mise-check check`,
@@ -193,7 +194,7 @@ of it broken nine ways, one at a time, is caught each time.
 | [templates/](templates/) | other repos' | the template: the little app plus the tool's half, which `init` writes into a repo at the same paths; [templates.go](templates/templates.go) lists that half |
 | [cmd/mise-check/](cmd/mise-check/) | other repos' | the command: a file per command, `x.go` holding `r.x`, which `main.go`'s `case "x"` calls |
 | [misecheck.go](misecheck.go), [walk/](walk/) | other repos' | the two packages a repo's tests import |
-| [e2e/](e2e/) | this repo's | the walk and `TestUpdate` |
+| [e2e_walk_test.go](e2e_walk_test.go), [e2e_tool_test.go](e2e_tool_test.go) | this repo's | at the top, as the end-to-end runs on everything else: the walk and `TestUpdate`; `TestToolRelease`, the release, which only `mise run tool:release` runs |
 | [.github/workflows/](.github/workflows/) | this repo's | its own workflows; other repos get theirs from `templates/` |
 
 ### CI and releases
@@ -205,8 +206,11 @@ on any machine:
   `root:check-mise`, `template:check-mise`, `template:e2e`, `new-repo:e2e`, `new-repo:e2e-update`.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
   repo made the README's way at that release, walked, on Linux, macOS and Windows.
-- Releases, with goreleaser as mise-cloudflare's, aren't switched on yet: until then a repo runs this checkout's build
-  through `mise run tool:install`.
+- [release.yml](.github/workflows/release.yml), on every change to what mise-check is (its binary, its packages, the
+  template) merged to main: `tool:release`. It takes the commit's `v*` tag or tags the next patch version,
+  [goreleaser](.goreleaser.yaml) puts the `mise-check` binary for macOS, Linux and Windows on the release, a new repo
+  made at that release is walked (`new-repo:e2e --version`), and the version goes on proxy.golang.org, so `go get`
+  and pkg.go.dev have it at once. So the release is always main: the binary and the packages are one version.
 
 This README is the one place for all of it, for people and agents alike: CLAUDE.md only loads it (`@README.md`).
 

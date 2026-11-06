@@ -1,0 +1,47 @@
+# A release on every change to what the tool is (its code, its packages, the files it writes, its skill) merged to main, so
+# `mise use github:joeblew999/mise-check` always gets what main is. It checks out (with the tags) and installs mise,
+# then runs mise run tool:release, the same as on any machine: the commit's v* tag or the next patch version, goreleaser's
+# binaries on the tag's GitHub release, where mise's github backend finds them, a new repo set up on the release, and the
+# version on proxy.golang.org. A v* tag pushed by hand releases that version. Shell steps only, as ci.yml.
+name: release
+
+on:
+  push:
+    branches: [main]
+    # Not the template's own pin of mise-check, nor a test: neither changes anything in the tool.
+    paths: ["cmd/**", "misecheck.go", "walk/**", "templates/**", "!templates/.mise/config.toml", "!**/*_test.go", "go.mod", "go.sum", ".goreleaser.yaml", ".github/workflows/release.yml"]
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # the release and its files
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MISE_YES: "1"
+    steps:
+      - name: Check out with git, with the tags (no actions/checkout)
+        run: |
+          git init -q .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --tags origin "$GITHUB_SHA"
+          git checkout -q --detach "$GITHUB_SHA"
+          git log --oneline -1
+
+      - name: mise, Go and goreleaser
+        run: |
+          echo "MISE_TRUSTED_CONFIG_PATHS=$PWD" >> "$GITHUB_ENV"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          curl -fsSL https://mise.run | MISE_QUIET=1 sh
+          export PATH="$HOME/.local/bin:$PATH" MISE_TRUSTED_CONFIG_PATHS="$PWD"
+          mise install
+
+      - name: The release, from the root mise as on any machine (mise run tool:release, after tool:test)
+        run: mise run tool:release

@@ -10,15 +10,22 @@
 #   mise run new-repo:e2e-update   a new repo given old pins of every kind (node, wrangler, Go modules, a major among
 #                              them): mise-check:update moves them all, then verify
 #   mise run template:update   the template's own pins at their newest, by its own task (mise-check:update)
+#   mise run tool:release      a release from the commit checked out, as release.yml runs it (--dry-run)
 #   mise run root:update       this repo's own pins at their newest, by the binary's own update, from source
 
 [settings]
 # go.mod's toolchain line is the Go pin; this makes mise install honour it.
 idiomatic_version_file_enable_tools = ["go"]
+# mise 2026.10 fails to install a tool while it fetches its agent skill (a 404); it isn't needed.
+skills.fetch = false
+
+[tools]
+usage = { version = "7.2.0", workflow = "publish-cli.yml" }    # --help and tab-completion for the tasks' flags
+goreleaser = "2.20.0"   # the release's binaries (.goreleaser.yaml)
 
 [tasks."tool:test"]
-description = "go vet, and the tests of the checker (what it reads of a mise file, how it reads a run line, the template broken nine ways), the walk, and the binary (none of them walk)"
-run = 'go vet ./... && go test ./... -count=1'
+description = "go vet, the tests of the checker (what it reads of a mise file, how it reads a run line, the template broken nine ways), the walk and the binary (none of them walk), and the release config (goreleaser check)"
+run = 'go vet ./... && go test ./... -count=1 && goreleaser check'
 
 [tasks."root:check-mise"]
 description = "misecheck on this repo's own mise.toml, the file this task is in: each task one line, the Go it runs there, its usage passed by name, no POSIX shell syntax, so every task here runs on Windows too"
@@ -36,27 +43,27 @@ run = "mise link -f github:joeblew999/mise-check@local {{config_root}}/bin && mi
 
 [tasks."template:check-mise"]
 description = "misecheck on the template's tasks file, both ways: against the binary's Go (each task's command is its file, each command file is a task's, each flag on both sides) and against the walk that runs them (each task it names is one)"
-env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "e2e" }
+env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "." }
 run = 'go test . -run "^TestMise$" -count=1 -v'
 
 [tasks."template:e2e"]
 description = "TestWalk on the template, templates/, where it is: its numbered tasks (mise-check:03-init to update) in their order, through its own mise file, each checked (walk_test.go). After tool:install"
 depends = ["tool:install"]
-env = { REPO_PATH = "../templates" }
-run = 'go test ./e2e -run "^TestWalk$" -count=1 -v -timeout 15m'
+env = { REPO_PATH = "templates" }
+run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m'
 
 [tasks."new-repo:e2e"]
 description = "TestWalk on a new repo, made from nothing as docs/mise-check/README.md says (an empty folder with its own git, mise-check init at this checkout's build, then mise-check:template: its app, packages and go.mod), its numbered tasks each checked. At this checkout's build, or the release --version names, as new-repo.yml tries each release. Gone after it. After tool:install"
 usage = 'flag "--version <version>" help="make it at this release of mise-check from GitHub, as mise exec does, instead of the build of this checkout"'
 depends = ["tool:install"]
-env = { REPO_PATH = "../templates", E2E_STAMPED = "true" }
-run = 'go test ./e2e -run "^TestWalk$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
+env = { REPO_PATH = "templates", E2E_STAMPED = "true" }
+run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'
 
 [tasks."new-repo:e2e-update"]
 description = "TestUpdate: a new repo, made as new-repo:e2e makes it, given old pins of every kind (node in mise.toml, wrangler in package.json, go-chi/chi v1 and google/uuid in go.mod); mise-check:update must move every one, chi to /v5 with its import rewritten, then mise-check:verify pass. Gone after it. After tool:install"
 depends = ["tool:install"]
-env = { REPO_PATH = "../templates", E2E_UPDATE = "true" }
-run = 'go test ./e2e -run "^TestUpdate$" -count=1 -v -timeout 20m'
+env = { REPO_PATH = "templates", E2E_UPDATE = "true" }
+run = 'go test . -run "^TestUpdate$" -count=1 -v -timeout 20m'
 
 [tasks."template:update"]
 description = "The template's own pins at their newest releases, by its own task, mise-check:update, run in templates/ as in a repo on its own (MISE_CEILING_PATHS): node, aube, wrangler, and mise-check's release pin in .mise/config.toml (the machine's .mise/config.local.toml ignored). It ends with every pin, the moved ones before → after. Then the walks prove it. After tool:install"
@@ -68,3 +75,9 @@ run = "mise run mise-check:update"
 [tasks."root:update"]
 description = "This repo's own pins at their newest releases, by the binary's own update, from source: go.mod's Go and modules (go-mod-upgrade's tool line among them: then TestPin says to move cmd/mise-check's pin of it too). Then tool:test and the walks prove it"
 run = "go run ./cmd/mise-check update"
+
+[tasks."tool:release"]
+description = "A release of mise-check from the commit checked out, as release.yml runs it on GitHub: the commit's v* tag, or the next patch version tagged and pushed; goreleaser's binaries on that tag's release; a new repo made at it and walked (new-repo:e2e --version); the version on proxy.golang.org. --dry-run tags and publishes nothing (a goreleaser snapshot into dist/). After tool:test"
+usage = 'flag "--dry-run" help="tag and publish nothing: goreleaser builds a snapshot into dist/"'
+depends = ["tool:test"]
+run = 'go test . -run "^TestToolRelease$" -count=1 -v -timeout 30m{% if usage.dry_run %} -args -dry-run{% endif %}'

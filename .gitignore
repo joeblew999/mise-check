@@ -4,3 +4,5 @@
 .DS_Store
 # This checkout's build (mise run tool:build)
 bin/
+# goreleaser's snapshot (mise run tool:release --dry-run)
+dist/

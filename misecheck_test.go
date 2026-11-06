@@ -99,13 +99,13 @@ func TestRunForms(t *testing.T) {
 // ---- The example, checked: it passes, and each way of breaking it is caught ----
 
 // ours is mise-check's own template checked the strict way, in a copy at dir (or this checkout, "."): its tasks file
-// against the binary's Go (cmd/mise-check) and against the walk that runs them (e2e/).
+// against the binary's Go (cmd/mise-check) and against the walk that runs them (e2e_walk_test.go).
 func ours(dir string) Config {
 	return Config{
 		MiseFile:  filepath.Join(dir, tasksFile),
 		GoCmd:     filepath.Join(dir, "cmd"),
 		GoLayout:  "file",
-		GoCallers: filepath.Join(dir, "e2e"),
+		GoCallers: dir,
 	}
 }
 
@@ -156,7 +156,7 @@ func TestBroken(t *testing.T) {
 			},
 			"is a command of mise-check"},
 		{"a task name glued together from pieces in Go",
-			edit(filepath.Join("e2e", "walk_test.go"), `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"05-show\"\n\nvar (_ = glued"),
+			edit("e2e_walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"05-show\"\n\nvar (_ = glued"),
 			"builds a task name from pieces"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -192,8 +192,15 @@ var tasksFile = filepath.Join("templates", ".mise", "tasks", "mise-check.toml")
 // copyOurs copies what ours checks, the binary's Go, the template and the walk, into dir.
 func copyOurs(t *testing.T, dir string) {
 	t.Helper()
-	for _, f := range []string{"cmd", "templates", "e2e"} {
+	for _, f := range []string{"cmd", "templates"} {
 		copyTree(t, f, filepath.Join(dir, f))
+	}
+	b, err := os.ReadFile("e2e_walk_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "e2e_walk_test.go"), b, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

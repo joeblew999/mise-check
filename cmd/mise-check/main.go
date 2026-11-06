@@ -69,7 +69,10 @@ func main() {
 		if inCI() {
 			fail(fmt.Errorf("in CI %s doesn't run: CI only checks the repo, and %s changes its pins; run mise run mise-check:%s on your machine, then mise run mise-check:verify", command, command, command))
 		}
-		o := updates{pick: *pick, noMajor: *noMajor}
+		o := updates{json: *jsonOut, pick: *pick, noMajor: *noMajor}
+		if o.json {
+			out = os.Stderr
+		}
 		switch command {
 		case "update":
 			r.update(o)

@@ -7,7 +7,10 @@
 package misecheck_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -133,9 +136,9 @@ var router, id = chi.NewRouter(), uuid.NewString
 	n.Pass("node 24.11.0 (mise.toml), wrangler 4.100.0 (package.json), go-chi/chi v1.5.4 and google/uuid v1.3.0 (go.mod)")
 
 	// Each of them refuses in CI, which only checks: here it's the walk's own repo, made to be updated.
-	update := func(task string) string {
+	update := func(task string, args ...string) string {
 		t.Helper()
-		out, err := n.Task(n.Env("CI="), "", task)
+		out, err := n.Task(n.Env("CI="), "", task, args...)
 		if err != nil {
 			t.Fatalf("%s: %v\n%s", task, err, out)
 		}
@@ -187,11 +190,25 @@ var router, id = chi.NewRouter(), uuid.NewString
 	}
 	n.Pass("google/uuid moved, and go-chi/chi to /v5 with app/deps.go's import rewritten")
 
-	n.Heading("mise-check:update: all three, and nothing is left to move")
-	if out := update("mise-check:update"); !strings.Contains(out, "nothing moved") {
-		t.Fatalf("mise-check:update after the three moved something more:\n%s", out)
+	n.Heading("mise-check:update --json: all three, and nothing is left to move")
+	var all struct {
+		Moved int
+		Pins  []struct{ File, Name, Before, After string }
 	}
-	n.Pass("mise-check:update: nothing moved, each pin its newest")
+	// stdout alone, the one JSON document; the tools' own output is on stderr. CI= as above.
+	cmd := exec.Command("mise", "run", "mise-check:update", "--json")
+	cmd.Dir, cmd.Env, cmd.Stderr = n.Dir, n.Env("CI=", "MISE_TASK_OUTPUT=interleave"), os.Stderr
+	doc, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("mise-check:update --json: %v", err)
+	}
+	if err := json.Unmarshal(doc[bytes.IndexByte(doc, '{'):], &all); err != nil || len(all.Pins) == 0 {
+		t.Fatalf("mise-check:update --json isn't one JSON document of pins: %v\n%s", err, doc)
+	}
+	if all.Moved != 0 {
+		t.Fatalf("mise-check:update after the three moved %d more: %+v", all.Moved, all.Pins)
+	}
+	n.Pass("mise-check:update --json: %d pins, none moved, each its newest", len(all.Pins))
 	n.MustTask("mise-check:verify")
 	n.Pass("mise-check:verify passes after: setup, the app's tests, then check")
 }

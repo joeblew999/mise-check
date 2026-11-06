@@ -26,23 +26,23 @@ run = 'mise-check show{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update"]
 description = "Every pin at its newest release, in one go: update-mise, update-packages and update-go, in that order. It ends with every pin, the moved ones before → after; git diff shows them, then mise run mise-check:verify proves them (a major move can break)"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
-run = 'mise-check update{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
+usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-mise"]
 description = "The mise tools at their newest releases, in the repo's mise files (mise upgrade --bump), mise-check's own pin among them, and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
-run = 'mise-check update-mise{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
+usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-mise{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-packages"]
 description = "The Node packages at their newest releases, package.json and whichever lockfile the repo has (aube update, aube pinned in the repo's mise), and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
-run = 'mise-check update-packages{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
+usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-packages{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-go"]
 description = "Go at its newest, in every go.mod: its toolchain line, and its modules, majors too, their import paths rewritten (go mod tidy, go-mod-upgrade, go mod tidy), and nothing else"
-usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"'
-run = 'mise-check update-go{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}'
+usage = 'flag "--pick" help="ask for each one, with the picker of each tool"; flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
+run = 'mise-check update-go{% if usage.pick %} --pick{% endif %}{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:show-users"]
 description = "Which of the owner's repos on GitHub use this one: its Go module in their go.mod, its binary in their mise files, at the versions each pins, against the newest release, the behind ones marked. Needs a token for private repos (GITHUB_TOKEN, GH_TOKEN, or gh's login)"
@@ -50,7 +50,7 @@ usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show-users{% if usage.json %} --json{% endif %}'
 
 ["mise-check:verify"]
-description = "What the repo's GitHub workflow runs: its own setup and test tasks, if it has them, then check. The same here as on GitHub"
+description = "What the repo's GitHub workflow runs: each pin consistent with what pins it (the packages with their lockfile, aube install --frozen-lockfile; every go.mod with its code, go mod tidy -diff), its own setup and test tasks if it has them, then check. The same here as on GitHub"
 run = "mise-check verify"
 
 ["mise-check:template"]

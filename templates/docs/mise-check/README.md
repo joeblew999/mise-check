@@ -37,15 +37,18 @@ Then, whenever you want pins moved, each task named for what it acts on:
 | `mise run mise-check:update-packages` | the Node packages: `package.json` and its lockfile, through aube |
 | `mise run mise-check:update-go` | Go, in every `go.mod`: its toolchain line and modules, majors too |
 
-Each takes `--pick` (asked for each one, with the picker of each tool) and `--no-major` (no major moves).
+Each takes `--pick` (asked for each one, with the picker of each tool), `--no-major` (no major moves) and `--json`
+(one JSON document on stdout: every pin, its file, before and after, whether it moved and whether that was a major
+move; the tools' own output goes to stderr). `show`, `check` and `show-users` take `--json` too.
 
 And `mise run mise-check:show-users`: which of the owner's repos on GitHub use this one (its Go module in their
 `go.mod`, its binary in their mise files), at what version, the ones behind its newest release marked. It reads the
 repos on GitHub, as Go's own index (pkg.go.dev's imported-by) counts no imports from tests, and mise pins aren't in
 any index; private repos need a token (`GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth login`).
 
-And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs on GitHub: the repo's own `setup` and
-`test` tasks if it has them, then check), `mise run mise-check:template`, `mise run mise-check:show-version`,
+And `mise run mise-check:verify` (what `.github/workflows/mise-check.yml` runs on GitHub: first each kind of pin checked
+consistent with what pins it, as the updates leave them, then the repo's own `setup` and `test` tasks if it has them,
+then check), `mise run mise-check:template`, `mise run mise-check:show-version`,
 `mise run mise-check:show-help`.
 
 ## What the updates run
@@ -67,6 +70,15 @@ rest: then `mise run mise-check:03-init` writes its files again. In CI it doesn'
 
 go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. mise can't write a `go.mod` (its
 idiomatic version file for Go), so `update-mise` leaves Go to `update-go`.
+
+What `verify` checks of each kind, so a pin file out of step with the code fails here and on GitHub, and an update
+is what fixes it:
+
+| Kind | Moved by | `verify` checks |
+|---|---|---|
+| mise tools | `update-mise` | nothing more: the mise files pin exact versions, their own lock |
+| Node packages | `update-packages` | `aube install --frozen-lockfile`: `package.json` and the lockfile agree |
+| Go | `update-go` | `go mod tidy -diff` in every go.mod: go.mod and go.sum are what the imports need |
 
 | Task | `--pick` | `--no-major` |
 |---|---|---|

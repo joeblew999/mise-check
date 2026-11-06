@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"os"
@@ -91,6 +92,10 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		}
 	}
 	after := r.pins(mods)
+	if o.json {
+		emit(pinsMoved(before, after))
+		return
+	}
 	if b, a := selfPin(before), selfPin(after); a != b {
 		fmt.Printf("mise-check moved from %s to %s: mise run mise-check:03-init writes its files again (04-check fails until it has)\n", b, a)
 	}
@@ -110,6 +115,7 @@ func (r repo) updatePins(o updates, kinds ...string) {
 
 // updates are the update commands' choices, their flags.
 type updates struct {
+	json    bool // one JSON document on stdout, every pin before → after; the tools' own output on stderr
 	pick    bool // ask for each one, with the picker of each tool
 	noMajor bool // no major moves: packages within their ranges, Go modules within their major
 }
@@ -208,6 +214,39 @@ func selfPin(p map[string]string) string {
 	return ""
 }
 
+// pin is one pin in update --json: the file that pins it, its name, its version before and after the update ("" for
+// none: a module a major move renamed), whether it moved, and whether that was a major move.
+type pin struct {
+	File   string `json:"file"`
+	Name   string `json:"name"`
+	Before string `json:"before"`
+	After  string `json:"after"`
+	Moved  bool   `json:"moved"`
+	Major  bool   `json:"major,omitempty"`
+}
+
+// pinsMoved is update --json: every pin, in the order of their file and name, and how many moved.
+func pinsMoved(before, after map[string]string) any {
+	all := maps.Clone(before)
+	maps.Copy(all, after)
+	pins := []pin{}
+	n := 0
+	for _, k := range slices.Sorted(maps.Keys(all)) {
+		file, name, _ := strings.Cut(k, " ")
+		b, a := before[k], after[k]
+		p := pin{File: file, Name: name, Before: b, After: a, Moved: a != b}
+		p.Major = p.Moved && b != "" && a != "" && breaking(b, a)
+		if p.Moved {
+			n++
+		}
+		pins = append(pins, p)
+	}
+	return struct {
+		Moved int   `json:"moved"`
+		Pins  []pin `json:"pins"`
+	}{n, pins}
+}
+
 // moved is every pin, one line each in the order of their file and name, and how many moved: one that stayed is
 // "aube 2.8.4 (mise.toml)", one that moved "node 26.12.1 → 26.13.0 (mise.toml)"; one only before or after has
 // "none" for the other (a module a major move renamed: github.com/go-chi/chi → none, github.com/go-chi/chi/v5 none → …).
@@ -285,13 +324,16 @@ func (r repo) runOwnMise(dir string, args ...string) {
 	if dir != r.dir {
 		at = " (in " + r.rel(dir) + ")"
 	}
-	fmt.Println("$ mise " + strings.Join(args, " ") + at)
+	fmt.Fprintln(out, "$ mise "+strings.Join(args, " ")+at)
 	cmd := exec.Command("mise", args...)
-	cmd.Dir, cmd.Env, cmd.Stdin, cmd.Stdout, cmd.Stderr = dir, r.ownMise(), os.Stdin, os.Stdout, os.Stderr
+	cmd.Dir, cmd.Env, cmd.Stdin, cmd.Stdout, cmd.Stderr = dir, r.ownMise(), os.Stdin, out, os.Stderr
 	if err := cmd.Run(); err != nil {
 		fail(fmt.Errorf("mise %s%s: %w", strings.Join(args, " "), at, err))
 	}
 }
+
+// out is where the tools' own output goes: stdout, or stderr with --json, which keeps stdout to its one JSON document.
+var out io.Writer = os.Stdout
 
 // exists reports whether the repo has the file f.
 func (r repo) exists(f string) bool {

@@ -104,8 +104,9 @@ func TestUpdate(t *testing.T) {
 	n.SetUp()
 
 	n.Heading("Old pins of every kind")
-	replace(t, filepath.Join(n.Dir, "mise.toml"), `node = "26.13.0"`, `node = "24.11.0"`)
-	replace(t, filepath.Join(n.Dir, "package.json"), `"wrangler": "4.155.0"`, `"wrangler": "4.100.0"`)
+	// Whatever the template pins now (template:update moves it), made old.
+	replace(t, filepath.Join(n.Dir, "mise.toml"), `node = "[^"]*"`, `node = "24.11.0"`)
+	replace(t, filepath.Join(n.Dir, "package.json"), `"wrangler": "[^"]*"`, `"wrangler": "4.100.0"`)
 	must(t, os.WriteFile(filepath.Join(n.Dir, "app", "deps.go"), []byte(`package main
 
 import (
@@ -184,13 +185,14 @@ var router, id = chi.NewRouter(), uuid.NewString
 	n.Pass("mise-check:verify passes after: setup, the app's tests, then check")
 }
 
+// replace makes the one match of the pattern old in the file new.
 func replace(t *testing.T, path, old, new string) {
 	t.Helper()
-	s := read(t, path)
-	if strings.Count(s, old) != 1 {
-		t.Fatalf("%s: %q isn't there exactly once", path, old)
+	s, re := read(t, path), regexp.MustCompile(old)
+	if n := len(re.FindAllString(s, -1)); n != 1 {
+		t.Fatalf("%s: %s matches %d times, not once", path, old, n)
 	}
-	must(t, os.WriteFile(path, []byte(strings.Replace(s, old, new, 1)), 0o644))
+	must(t, os.WriteFile(path, []byte(re.ReplaceAllLiteralString(s, new)), 0o644))
 }
 
 func read(t *testing.T, path string) string {

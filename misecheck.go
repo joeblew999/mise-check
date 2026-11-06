@@ -77,6 +77,7 @@ package misecheck
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -95,6 +96,9 @@ type Config struct {
 	// GO_BINARIES: which binaries of GoCmd to hold to the strict way, comma-separated (optional; empty, all of them).
 	// For a repo taking it up one binary at a time: the others are left alone, as anything else a task runs is.
 	GoBinaries string
+	// SKILL_FILE: the agent skill of these tasks (a SKILL.md), held to them both ways: every task of the mise file is
+	// named in it, and every task it names, in full ("namespace:task"), is one (optional).
+	Skill string
 }
 
 // FromEnv is the Config the environment says: MISE_FILE, GO_CMD, GO_LAYOUT, GO_CALLERS and GO_BINARIES.
@@ -105,6 +109,7 @@ func FromEnv() Config {
 		GoLayout:   os.Getenv("GO_LAYOUT"),
 		GoCallers:  os.Getenv("GO_CALLERS"),
 		GoBinaries: os.Getenv("GO_BINARIES"),
+		Skill:      os.Getenv("SKILL_FILE"),
 	}
 }
 
@@ -158,6 +163,9 @@ func Check(t testing.TB, c Config) {
 		checkGoToMise(t, file, tasks, g)
 	}
 	checkUsage(t, file, tasks, g)
+	if c.Skill != "" {
+		checkSkill(t, file, tasks, c.Skill)
+	}
 	if callers == "" {
 		t.Logf("Go → mise: no GO_CALLERS, so no Go that runs %s by name is checked", file)
 		return
@@ -248,6 +256,63 @@ func (g goSide) binaryAt(place string) string {
 }
 
 // ---- The checks ----
+
+// checkSkill holds the agent skill of the tasks to them, both ways, so an agent is never told of a task that isn't
+// there, nor left without one that is: every task of the mise file is named in the skill, as a word of its own, and
+// every flag a task declares is named in it too; and every task the skill names in full ("namespace:task", in a
+// namespace of the file's) is a task. A task added, renamed
+// or taken out without the skill, and the skill says so.
+func checkSkill(t testing.TB, file string, tasks []task, skill string) {
+	t.Helper()
+	b, err := os.ReadFile(skill)
+	if err != nil {
+		t.Errorf("skill: SKILL_FILE=%s can't be read: %v", skill, err)
+		return
+	}
+	text := string(b)
+	names := map[string]bool{}
+	namespaces := map[string]bool{}
+	for _, task := range tasks {
+		names[task.name] = true
+		if ns, _, ok := strings.Cut(task.name, ":"); ok {
+			namespaces[ns] = true
+		}
+	}
+	missing := 0
+	for _, task := range tasks {
+		if !regexp.MustCompile(`(^|[^A-Za-z0-9:_-])` + regexp.QuoteMeta(task.name) + `($|[^A-Za-z0-9:_-])`).MatchString(text) {
+			missing++
+			t.Errorf("skill: %s's task %s isn't named in the skill %s: an agent there never learns of it; say when to run it", file, task.name, skill)
+		}
+	}
+	// Every flag a task declares, so the skill says what each command can do, not only that it's there.
+	flags := map[string]string{}
+	for _, task := range tasks {
+		for _, n := range usageNames(task.usage) {
+			if n.flag {
+				if _, ok := flags[n.name]; !ok {
+					flags[n.name] = task.name
+				}
+			}
+		}
+	}
+	for _, f := range slices.Sorted(maps.Keys(flags)) {
+		if !regexp.MustCompile(`(^|[^A-Za-z0-9_-])--` + regexp.QuoteMeta(f) + `($|[^A-Za-z0-9_-])`).MatchString(text) {
+			missing++
+			t.Errorf("skill: %s's task %s takes the flag --%s, which the skill %s doesn't name: say what it does", file, flags[f], f, skill)
+		}
+	}
+	unknown := 0
+	for ns := range namespaces {
+		for _, m := range regexp.MustCompile(`(?:^|[^A-Za-z0-9:_-])(`+regexp.QuoteMeta(ns)+`:[a-z0-9][a-z0-9-]*)`).FindAllStringSubmatch(text, -1) {
+			if !names[m[1]] {
+				unknown++
+				t.Errorf("skill: %s names the task %s, which isn't a task of %s: did it move?", skill, m[1], file)
+			}
+		}
+	}
+	t.Logf("skill: %d tasks and %d flags of %s, against the skill %s: %d not named in it, %d it names that aren't tasks", len(tasks), len(flags), file, skill, missing, unknown)
+}
 
 // checkMiseToGo checks mise to Go: every place of Go a task runs is there, and is Go. A task with nothing in either
 // form is reported, as not checked. A mise file whose tasks run no Go at all fails if it's given GO_CMD, which says

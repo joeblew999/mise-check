@@ -46,8 +46,8 @@ depends = ["tool:build"]
 run = "mise link -f github:joeblew999/mise-check@local {{config_root}}/bin && mise use -q --path {{config_root}}/templates/.mise/config.local.toml github:joeblew999/mise-check@local"
 
 [tasks."template:check-mise"]
-description = "misecheck on the template's tasks file, both ways: against the binary's Go (each task's command is its file, each command file is a task's, each flag on both sides) and against the walk that runs them (each task it names is one)"
-env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = "." }
+description = "misecheck on the template's tasks file, both ways: against the binary's Go (each task's command is its file, each command file is a task's, each flag on both sides), against the walk that runs them (each task it names is one), and against the skill (it names every task and flag, and only tasks there are)"
+env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_LAYOUT = "file", GO_CALLERS = ".", SKILL_FILE = "templates/.claude/skills/mise-check/SKILL.md" }
 run = 'go test . -run "^TestMise$" -count=1 -v'
 
 [tasks."template:e2e"]

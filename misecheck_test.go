@@ -106,6 +106,7 @@ func ours(dir string) Config {
 		GoCmd:     filepath.Join(dir, "cmd"),
 		GoLayout:  "file",
 		GoCallers: dir,
+		Skill:     filepath.Join(dir, "templates", ".claude", "skills", "mise-check", "SKILL.md"),
 	}
 }
 
@@ -157,6 +158,12 @@ run = 'mise-check show-version{% if usage.color %} --color{% endif %}`),
 				os.WriteFile(filepath.Join(dir, "cmd", "mise-check", "wave.go"), []byte("package main\n\nfunc wave(args []string) {}\n"), 0o644)
 			},
 			"is a command of mise-check"},
+		{"a task the skill doesn't name: an agent never learns of it",
+			edit(skillFile, "| `mise run mise-check:show-version` | to say which mise-check this is | its version |\n", ""),
+			"mise-check:show-version isn't named in the skill"},
+		{"a task the skill names that isn't a task",
+			edit(skillFile, ":show-version` | to say", ":show-versions` | to say"),
+			"show-versions, which isn't a task"},
 		{"a task name glued together from pieces in Go",
 			edit("e2e_walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"show\"\n\nvar (_ = glued"),
 			"builds a task name from pieces"},
@@ -187,6 +194,9 @@ func edit(file, old, new string) func(dir string) {
 		os.WriteFile(p, []byte(strings.Replace(string(b), old, new, 1)), 0o644)
 	}
 }
+
+// skillFile is the template's skill, from the repo's root: what TestBroken's skill breaks change.
+var skillFile = filepath.Join("templates", ".claude", "skills", "mise-check", "SKILL.md")
 
 // tasksFile is the template's tasks file, from the repo's root: what TestBroken breaks.
 var tasksFile = filepath.Join("templates", ".mise", "tasks", "mise-check.toml")

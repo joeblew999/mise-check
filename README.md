@@ -71,7 +71,10 @@ it: the one place for how to use mise-check, so this README doesn't repeat it.
 
 ## Use misecheck
 
-A test of your own calls it:
+A repo with mise-check's binary gets misecheck's rules on its own mise files with no code: `mise run
+mise-check:check` runs them on its `mise.toml` and `.mise/tasks/*.toml` (each task one line, usage passed by name, no
+POSIX shell syntax). The strict checks, for a repo with a binary of its own (its tasks against its Go, the tests that
+run them, and its skill), are a test of your own, which calls it:
 
 ```go
 func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }
@@ -91,11 +94,12 @@ run = 'go test . -run "^TestMise$" -count=1 -v'
 | `GO_CMD`, `GO_LAYOUT` | For tasks that run binaries of yours: their folder (`<GO_CMD>/<binary>/`), and how each binary's commands are laid out, `file` (a file each) or `folder` (a folder each). Both, or neither |
 | `GO_CALLERS` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
 | `GO_BINARIES` | Which binaries of `GO_CMD` to hold to the strict way, comma-separated (optional; empty, all of them): for a repo taking it up one binary at a time |
+| `SKILL_FILE` | The agent skill of these tasks, a `SKILL.md` (optional): it must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
 
 ## Use walk
 
-Your test says only what's yours: the steps (each a numbered task of your mise file, named in full, and what to check
-after it) and how a person makes a new repo with your tool. `walk` does the rest: the repo cut off from the repo
+Your test says only what's yours: the steps (each a task of your mise file, named in full, and what to check after it)
+and how a person makes a new repo with your tool. `walk` does the rest: the repo cut off from the repo
 around it (its own mise only), its tasks run by name, its setup, the steps in order, the files a step changed,
 process groups and Windows' long paths.
 
@@ -114,7 +118,9 @@ A task of your mise file runs it, saying which repo:
 | `E2E_STAMPED=true` | Walk a new repo instead, made from nothing by your `New` |
 | `E2E_STAGE` | How far to walk, when your steps have stages |
 
-`CheckSteps` fails unless your steps are exactly your mise file's numbered tasks, in their order, and misecheck
+For a tool whose steps are numbered in the order a repo takes them (mise-cloudflare's `cloudflare:03-init` to
+`15-clean`), `CheckSteps` fails unless your steps are exactly your mise file's numbered tasks, in their order; a tool
+with few steps (mise-check's `init`, `check`, `show`) needs no numbers, and no `TestSteps`. Either way, misecheck
 (`GO_CALLERS`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
 files can't give it, cut off from the repo around it, `Prepare` adds it (mise-check's own gives its template, a folder of
 its module with no `go.mod` of its own, that module's Go).
@@ -125,13 +131,15 @@ Every task: its `run` and `usage` are each one line; it declares its flags and a
 each by name with mise's templates (`{% if usage.yes %} --yes{% endif %}`); its run has no POSIX shell syntax
 (`${…}`, `$name`, `NAME=value cmd`), which Windows' cmd doesn't read.
 
-The Go a task runs: from source (`go run|test|build ./path`, any folder, several, `./...`) the folder must hold Go;
+The Go a task runs: from source (`go run|test|build ./path`, any folder, several) the folder must hold Go, and for
+`./...` or `./path/...` Go anywhere below it, as `go test` finds it;
 a binary of yours (`<binary> <command>`, built or run as `go tool <binary> <command>`) must have that command, every command must be one a task runs, and every flag
 is declared on both sides. Anything else a task runs (`hugo …`, `wrangler …`) is held to the rules every task is, above, and logged as not
 checked: a file of only such tool tasks passes on those rules alone, unless it's given `GO_CMD` (then its tasks must
 run its Go).
 
-Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task.
+Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. The skill (`SKILL_FILE`)
+names every task and every flag, and every task it names is one.
 
 The full rules are the [package documentation](https://pkg.go.dev/github.com/joeblew999/mise-check).
 
@@ -158,11 +166,11 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `root:verify` | Everything GitHub's CI runs, the same command: the checks at once, then the walks one after the other (they share the machine's aube store) | Before every push |
 | `tool:test` | `go vet`, the Go tests (the checker, the template broken nine ways, the walk, the binary; none of them walk), the release config | After every change |
 | `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
-| `template:check-mise` | `TestMise` on the template's tasks against the binary's Go and the walk that runs them, both ways | After a change to a task or a command |
+| `template:check-mise` | `TestMise` on the template's tasks against the binary's Go, the walk that runs them and the skill, both ways | After a change to a task, a command or the skill |
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
 | `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
-| `template:e2e-update` | The template where it is given old pins of every kind copied as it is into a folder of its own, with the go.mod `mise-check:template` writes: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
+| `template:e2e-update` | A copy of the template as it is, in a folder of its own, with the go.mod `mise-check:template` writes, given old pins of every kind: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
 | `new-repo:e2e-update` | A new repo given old pins of every kind: `update-mise`, `update-packages` and `update-go` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
@@ -189,7 +197,7 @@ which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
   rewritten; then `mise-check:update` has nothing left to move, and `mise-check:verify` passes. All real tools, nothing faked.
 
 **The mise ↔ Go checker** on mise-check's own template ([misecheck_test.go](misecheck_test.go)): it passes, and a copy
-of it broken nine ways, one at a time, is caught each time.
+of it broken eleven ways, one at a time (its skill among them), is caught each time.
 
 ### Layout
 

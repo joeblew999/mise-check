@@ -161,6 +161,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
 | `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
+| `template:e2e-update` | The template where it is given old pins of every kind (with the go.mod `mise-check:template` writes, for the test only): each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. Every file put back after | After a change to an update |
 | `new-repo:e2e-update` | A new repo given old pins of every kind: `mise-update`, `packages-update` and `go-update` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
@@ -179,7 +180,8 @@ which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
 - **A new repo**, made as a person makes one: an empty folder (`mise-check-new`) with its own git, `mise-check init`,
   then its own `mise-check:template`. Its `init` runs at this checkout's build (`local`), or at a release with
   `--version`, and pins itself in `.mise/config.toml`.
-- **A new repo with old pins** (`TestUpdate`): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
+- **The template and a new repo, each with old pins** (`TestUpdate`; `template:e2e-update` puts the template back as
+  it was after): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
   go-chi/chi v1.5.4 (imported by the app) and google/uuid v1.3.0 in go.mod. `mise-check:mise-update`,
   `packages-update` and `go-update` must each move its own kind and nothing else, chi to `/v5` with the app's import
   rewritten; then `mise-check:update` has nothing left to move, and `mise-check:verify` passes. All real tools, nothing faked.
@@ -203,7 +205,7 @@ Shell steps only, no JavaScript actions. Each workflow checks out and installs m
 on any machine:
 
 - [ci.yml](.github/workflows/ci.yml), on every push and pull request, on Linux, macOS and Windows: `tool:test`,
-  `root:check-mise`, `template:check-mise`, `template:e2e`, `new-repo:e2e`, `new-repo:e2e-update`.
+  `root:check-mise`, `template:check-mise`, `template:e2e`, `template:e2e-update`, `new-repo:e2e`, `new-repo:e2e-update`.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
   repo made the README's way at that release, walked, on Linux, macOS and Windows.
 - [release.yml](.github/workflows/release.yml), on every change to what mise-check is (its binary, its packages, the

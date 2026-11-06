@@ -90,7 +90,8 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	return n
 }
 
-// TestUpdate is the update commands on a new repo given old pins of every kind: a mise tool (node, in mise.toml), a
+// TestUpdate is the update commands on a repo given old pins of every kind, on the template where it is (mise run
+// template:e2e-update, every file put back after) and on a new repo (mise run new-repo:e2e-update): a mise tool (node, in mise.toml), a
 // package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and
 // one a minor behind (google/uuid). mise-check:mise-update, packages-update and go-update must each move its own kind
 // and nothing else, chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and
@@ -98,9 +99,19 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 func TestUpdate(t *testing.T) {
 	path := os.Getenv("REPO_PATH")
 	if path == "" || os.Getenv("E2E_UPDATE") != "true" {
-		t.Skip("mise run new-repo:e2e-update runs it (REPO_PATH=templates E2E_UPDATE=true)")
+		t.Skip("mise run template:e2e-update or new-repo:e2e-update runs it (REPO_PATH=templates E2E_UPDATE=true)")
 	}
-	n := newRepo(walk.At(t, path), "")
+	var n walk.Repo
+	if os.Getenv("E2E_STAMPED") == "true" {
+		n = newRepo(walk.At(t, path), "")
+	} else {
+		n = walk.At(t, path)
+		asItWas(t, n.Dir, "mise.toml", "package.json", "pnpm-lock.yaml", "go.mod", "go.sum", filepath.Join("app", "deps.go"))
+		// The go.mod mise-check:template writes into a repo, for this test only: the template has none of its own, as
+		// one would make it a module apart from mise-check's, whose embed it is.
+		must(t, os.WriteFile(filepath.Join(n.Dir, "go.mod"), []byte("module mise-check-template\n\ngo "+strings.TrimPrefix(runtime.Version(), "go")+"\n"), 0o644))
+		n.Pass("%s: the template where it is, with the go.mod mise-check:template writes, all put back as it was after", n.Name)
+	}
 	n.SetUp()
 
 	n.Heading("Old pins of every kind")
@@ -186,6 +197,28 @@ var router, id = chi.NewRouter(), uuid.NewString
 }
 
 // replace makes the one match of the pattern old in the file new.
+// asItWas puts the files of dir back as they are now when the test ends, pass or fail: one that isn't there now is
+// removed.
+func asItWas(t *testing.T, dir string, files ...string) {
+	t.Helper()
+	saved := map[string][]byte{}
+	for _, f := range files {
+		if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil {
+			saved[f] = b
+		}
+	}
+	t.Cleanup(func() {
+		for _, f := range files {
+			p := filepath.Join(dir, f)
+			if b, ok := saved[f]; ok {
+				os.WriteFile(p, b, 0o644)
+			} else {
+				os.Remove(p)
+			}
+		}
+	})
+}
+
 func replace(t *testing.T, path, old, new string) {
 	t.Helper()
 	s, re := read(t, path), regexp.MustCompile(old)

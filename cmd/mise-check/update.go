@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -18,10 +19,10 @@ import (
 // self is mise-check as a repo's mise pins it (.mise/config.toml, which init writes).
 const self = "github:joeblew999/mise-check"
 
-// goModUpgrade is the Go module upgrader update runs (github.com/oligot/go-mod-upgrade), at the version mise-check's
-// own go.mod pins on its tool line, by go run of it at that version: a repo needs no line of its own for it (one would
-// raise the repo's go line and put the upgrader's own modules in its go.mod). TestPin fails when this and go.mod
-// differ, so mise run root:update, which moves mise-check's own go.mod, says to move this with it.
+// goModUpgrade is the Go module upgrader update-go runs (github.com/oligot/go-mod-upgrade), by go run of it at this
+// version: a repo needs nothing of its own for it. Its pin is mise-check's root mise.toml ("go:<module>"), which
+// update-mise moves; TestPin fails when this and that differ. Not a tool line of go.mod: it would raise mise-check's go
+// line, and with it every importer's.
 const goModUpgrade = "github.com/oligot/go-mod-upgrade@v0.13.0"
 
 // cooldown is how old a Go module's release must be before update takes it, as mise and aube skip a release younger
@@ -53,8 +54,8 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		if o.pick {
 			upgrade = append(upgrade, "--interactive")
 		}
-		if selfPin(before) == "local" {
-			upgrade = append(upgrade, "--exclude", self)
+		for _, name := range r.atLocal() { // a checkout's own build (mise link, mise-check's or any tool's): it stays
+			upgrade = append(upgrade, "--exclude", name)
 		}
 		for _, name := range r.fromGoMod() { // Go, which go.mod pins: update-go's, as mise can't write go.mod
 			upgrade = append(upgrade, "--exclude", name)
@@ -79,6 +80,10 @@ func (r repo) updatePins(o updates, kinds ...string) {
 			r.runOwnMise(r.dir, "install") // the Go go.mod's toolchain line pins now, which mise installs from it
 		}
 		gmu := []string{"exec", "--", "go", "run", goModUpgrade, "--cooldown", cooldown}
+		own := r.ownModules()
+		if own != "" { // the owner's own modules: no cooldown, below
+			gmu = append(gmu, "--ignore", "^"+regexp.QuoteMeta(own))
+		}
 		if o.noMajor {
 			gmu = append(gmu, "--no-major")
 		}
@@ -88,6 +93,11 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		for _, m := range mods {
 			r.runOwnMise(m, "exec", "--", "go", "mod", "tidy")
 			r.runOwnMise(m, gmu...)
+			// The owner's own modules at their newest release, the moment it's out: the cooldown is for everyone else's,
+			// a bad release of theirs; yours you want at once (show-users says which repos are behind them).
+			if mine := r.requiresOf(m, own); len(mine) > 0 {
+				r.runOwnMise(m, append([]string{"exec", "--", "go", "get"}, mine...)...)
+			}
 			r.runOwnMise(m, "exec", "--", "go", "mod", "tidy")
 		}
 	}
@@ -185,6 +195,55 @@ func (r repo) pins(mods []string) map[string]string {
 		}
 	}
 	return p
+}
+
+// atLocal are the tools the repo's mise pins at local, a checkout's own build linked with mise link (mise run
+// tool:install): mise upgrade --bump would move them to a release.
+func (r repo) atLocal() []string {
+	var tools map[string][]struct{ Version string }
+	var names []string
+	if json.Unmarshal([]byte(r.mise("ls", "--no-global", "--json")), &tools) == nil {
+		for name, vs := range tools {
+			if slices.ContainsFunc(vs, func(v struct{ Version string }) bool { return v.Version == "local" }) {
+				names = append(names, name)
+			}
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+// ownModules is the module path prefix of the repo's owner, github.com/<owner>/, from its go.mod's module path; ""
+// when it isn't on GitHub.
+func (r repo) ownModules() string {
+	var f struct{ Module struct{ Path string } }
+	for _, m := range r.goModules() {
+		if json.Unmarshal([]byte(r.miseIn(m, "exec", "--", "go", "mod", "edit", "-json")), &f) == nil {
+			if p := strings.Split(f.Module.Path, "/"); len(p) >= 2 && p[0] == "github.com" {
+				return "github.com/" + p[1] + "/"
+			}
+		}
+	}
+	return ""
+}
+
+// requiresOf are the modules a go.mod requires under the prefix, each at @latest, for go get: none for "" or none there.
+func (r repo) requiresOf(mod, prefix string) []string {
+	if prefix == "" {
+		return nil
+	}
+	var f struct {
+		Require []struct{ Path string }
+	}
+	var out []string
+	if json.Unmarshal([]byte(r.miseIn(mod, "exec", "--", "go", "mod", "edit", "-json")), &f) == nil {
+		for _, q := range f.Require {
+			if strings.HasPrefix(q.Path, prefix) {
+				out = append(out, q.Path+"@latest")
+			}
+		}
+	}
+	return out
 }
 
 // fromGoMod are the tools mise reads from a go.mod (go, with idiomatic_version_file_enable_tools), which mise upgrade

@@ -25,6 +25,7 @@ skills.fetch = false
 [tools]
 usage = { version = "7.2.0", workflow = "publish-cli.yml" }    # --help and tab-completion for the tasks' flags
 goreleaser = "2.20.0"   # the release's binaries (.goreleaser.yaml)
+"go:github.com/oligot/go-mod-upgrade" = "0.13.0"   # the Go module upgrader update-go runs: the pin of cmd/mise-check's goModUpgrade (TestPin), here so update-mise moves it and no importer's go.mod carries it
 
 [tasks."tool:test"]
 description = "go vet, the tests of the checker (what it reads of a mise file, how it reads a run line, the template broken nine ways), the walk and the binary (none of them walk), and the release config (goreleaser check)"

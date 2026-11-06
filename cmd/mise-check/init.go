@@ -45,7 +45,7 @@ func (r repo) initRepo() {
 		}
 		to := filepath.Join(r.dir, filepath.FromSlash(p))
 		if b, err := os.ReadFile(to); err == nil && theirs[p] {
-			if p == ".mise/config.toml" && movePin(to, b) {
+			if p == ".mise/config.toml" && (addPin(to, b) || movePin(to, b)) {
 				return nil
 			}
 			fmt.Printf("✓ %s is the repo's own: left as it is\n", p)
@@ -63,6 +63,24 @@ func (r repo) initRepo() {
 		}
 		return err
 	}))
+}
+
+// addPin adds mise-check's pin to the repo's own .mise/config.toml (b) when it has none, as one another tool's init
+// wrote (mise-cloudflare's): under its [tools], or in a [tools] of its own at the end. The rest stays as it is.
+func addPin(path string, b []byte) bool {
+	if pinLine.Match(b) {
+		return false
+	}
+	line := pinned([]byte(`"` + self + `" = "latest"`))
+	s := string(b)
+	if i := strings.Index(s, "[tools]\n"); i >= 0 {
+		s = s[:i+len("[tools]\n")] + string(line) + "\n" + s[i+len("[tools]\n"):]
+	} else {
+		s = strings.TrimRight(s, "\n") + "\n\n[tools]\n" + string(line) + "\n"
+	}
+	must(os.WriteFile(path, []byte(s), 0o644))
+	fmt.Printf("wrote %s: mise-check's pin added, %s\n", path, line)
+	return true
 }
 
 // movePin moves the repo's pin of mise-check in its .mise/config.toml (b) forward to this release, when it pins an

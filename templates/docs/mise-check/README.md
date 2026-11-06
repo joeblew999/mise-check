@@ -88,5 +88,5 @@ is what fixes it:
 | `update-packages` | `aube update --interactive` | without `--latest`: each package within its range |
 | `update-go` | go-mod-upgrade's own picker | go-mod-upgrade `--no-major` |
 
-go-mod-upgrade is pinned once, in mise-check's own `go.mod`, and run at that version: the repo needs no line of its
-own for it. A newer mise-check brings a newer go-mod-upgrade.
+go-mod-upgrade is pinned once, in mise-check's own root `mise.toml`, and run at that version: the repo needs nothing
+of its own for it. A newer mise-check brings a newer go-mod-upgrade.

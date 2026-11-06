@@ -102,11 +102,11 @@ a repo with a binary of its own adds the strict checks with one test, `misecheck
 How to use all of it, misecheck and walk included, is the template's
 [docs/mise-check/README.md](templates/docs/mise-check/README.md), the page every repo gets.
 
-## Moving from 0.4 to 0.5
+## Moving to 0.4.20 or later
 
-0.5 drops the env a repo's tasks used to configure the packages: each repo's tests say it in Go instead.
+0.4.20 dropped the env a repo's tasks used to configure the packages: each repo's tests say it in Go instead.
 
-| 0.4 | 0.5 |
+| Before 0.4.20 | 0.4.20 and later |
 |---|---|
 | `func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }`, the task's `env` saying what (`MISE_FILE`, `GO_CMD`, `GO_LAYOUT`, `GO_CALLERS`, `GO_BINARIES`, `SKILL_FILE`) | A test for each mise file, its `misecheck.Config` written there: `func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }`, the task running it by name, no `env` |
 | `GoBinaries: "a,b"` | `GoBinaries: []string{"a", "b"}`, and `Skills` a list too |

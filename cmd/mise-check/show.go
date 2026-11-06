@@ -19,9 +19,9 @@ func (r repo) show(jsonOut bool) {
 	s := report{Version: buildVersion(), Problems: r.rules(), App: r.hasApp()}
 	switch {
 	case anyHas(s.Problems, "03-init"):
-		s.Next = "mise run mise-check:03-init"
+		s.Next = "mise run mise-check:init"
 	case len(s.Problems) > 0:
-		s.Next = "mise run mise-check:04-check"
+		s.Next = "mise run mise-check:check"
 	case !s.App:
 		s.Next = "mise run mise-check:template"
 	default:
@@ -33,10 +33,10 @@ func (r repo) show(jsonOut bool) {
 	}
 	mark := map[bool]string{true: "✓", false: "·"}
 	fmt.Printf("mise-check %s\n", s.Version)
-	fmt.Printf("%s 03-init    mise-check's files, as this version writes them\n", mark[!anyHas(s.Problems, "03-init")])
-	fmt.Printf("%s 04-check   the repo's rules\n", mark[len(s.Problems) == 0])
-	fmt.Printf("%s app        a Go program of the repo's own (or the template's: mise run mise-check:template)\n", mark[s.App])
-	fmt.Println("· update  every pin at its newest release, whenever you want them moved")
+	fmt.Printf("%s init      mise-check's files, as this version writes them\n", mark[!anyHas(s.Problems, "03-init")])
+	fmt.Printf("%s check     the repo's rules\n", mark[len(s.Problems) == 0])
+	fmt.Printf("%s app       a Go program of the repo's own (or the template's: mise run mise-check:template)\n", mark[s.App])
+	fmt.Println("· update    every pin at its newest release, whenever you want them moved")
 	for _, p := range s.Problems {
 		fmt.Println("  FAIL " + p)
 	}

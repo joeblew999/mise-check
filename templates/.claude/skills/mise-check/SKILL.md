@@ -12,7 +12,7 @@ command, what each update moves and how, and its flags, is in this repo's
 Start with `mise run mise-check`: it shows the steps, which are done, and what to run next.
 
 The tasks are numbered in the order a repo meets them, and each runs the command of its name
-(`mise run mise-check:04-check` runs `mise-check check`): `03-init`, `04-check`, `05-show`, each
+(`mise run mise-check:check` runs `mise-check check`): `03-init`, `04-check`, `05-show`, each
 `mise run mise-check:<it>`. Steps 00 to 02 come before them: the repo's git, `mise install`, its own `setup`. And
 `mise run mise-check:verify` (what GitHub runs), `mise run mise-check:template` (the template's little app, in a repo
 with no Go program yet), `mise run mise-check:show-help`.
@@ -40,7 +40,7 @@ checks.
 - Never run `npm`, `npx`, `pnpm` or `yarn`: the packages are aube's, at the version the repo's mise pins.
 - Never add a `tool` line for go-mod-upgrade to the repo's `go.mod`: mise-check runs it at the version its own release
   pins.
-- Never edit what `mise run mise-check:03-init` writes: `.mise/tasks/mise-check.toml`, `docs/mise-check/`, this skill,
+- Never edit what `mise run mise-check:init` writes: `.mise/tasks/mise-check.toml`, `docs/mise-check/`, this skill,
   `.github/workflows/mise-check.yml` and the Claude Code hook. After upgrading mise-check, run
-  `mise run mise-check:03-init`, which writes them again.
-- Never weaken a rule `mise run mise-check:04-check` reports: fix the repo.
+  `mise run mise-check:init`, which writes them again.
+- Never weaken a rule `mise run mise-check:check` reports: fix the repo.

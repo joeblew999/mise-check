@@ -18,12 +18,12 @@ import (
 )
 
 const help = `This repo's pins and mise tasks, with mise-check. Each command is a task: mise run mise-check:<command>
-runs mise-check <command>; the steps are numbered in the order a repo meets them.
+runs mise-check <command>.
 
-The steps (mise run mise-check says which is next):
-  mise run mise-check:03-init            mise-check's files written into the repo (again, after upgrading)
-  mise run mise-check:04-check           the repo's rules: its mise files by misecheck, mise-check's files current, its pin
-  mise run mise-check:05-show            what's done, and what to run next (mise run mise-check, too)
+The repo (mise run mise-check says what to run next):
+  mise run mise-check:init               mise-check's files written into the repo (again, after upgrading)
+  mise run mise-check:check              the repo's rules: its mise files by misecheck, mise-check's files current, its pin
+  mise run mise-check:show               what's done, and what to run next (mise run mise-check, too)
 
 The updates, each pin at its newest release (--no-major: no major moves):
   mise run mise-check:update             all three below, in order

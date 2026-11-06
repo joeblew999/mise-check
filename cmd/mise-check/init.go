@@ -156,9 +156,9 @@ func (r repo) stale() []string {
 		b, err := os.ReadFile(filepath.Join(r.dir, filepath.FromSlash(p)))
 		switch {
 		case err != nil:
-			out = append(out, p+" is missing: run mise run mise-check:03-init")
+			out = append(out, p+" is missing: run mise run mise-check:init")
 		case !bytes.Equal(crlf(b), crlf(want)):
-			out = append(out, p+" is out of date: run mise run mise-check:03-init")
+			out = append(out, p+" is out of date: run mise run mise-check:init")
 		}
 		return nil
 	})

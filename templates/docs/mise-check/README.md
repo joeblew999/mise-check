@@ -25,9 +25,9 @@ code of its own skips `mise-check:template`, which never writes over a file anyw
 
 | Task | What |
 |---|---|
-| `mise run mise-check:03-init` | mise-check's files written into the repo again, after upgrading it |
-| `mise run mise-check:04-check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), init's files current, `.mise/config.toml` pinning mise-check |
-| `mise run mise-check:05-show` | what's done, and what to run next (`mise run mise-check` too) |
+| `mise run mise-check:init` | mise-check's files written into the repo again, after upgrading it |
+| `mise run mise-check:check` | the repo's rules: its own mise files by misecheck (`mise.toml` and `.mise/tasks/*.toml`: each task one line, usage passed by name, no POSIX shell syntax), init's files current, `.mise/config.toml` pinning mise-check |
+| `mise run mise-check:show` | what's done, and what to run next (`mise run mise-check` too) |
 
 
 Then, whenever you want pins moved, each task named for what it acts on:
@@ -68,7 +68,7 @@ parent folder's config, so nothing outside the repo moves:
 
 It ends with every pin, the moved ones before → after, majors marked. `git diff` shows them; `mise run
 mise-check:verify` proves them, as a major move can break the repo's own code. mise-check's own pin moves with the
-rest: then `mise run mise-check:03-init` writes its files again. In CI it doesn't run: CI only checks.
+rest: then `mise run mise-check:init` writes its files again. In CI it doesn't run: CI only checks.
 
 go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. mise can't write a `go.mod` (its
 idiomatic version file for Go), so `update-mise` leaves Go to `update-go`.

@@ -39,7 +39,7 @@ func (r repo) rules() []string {
 	b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml"))
 	switch {
 	case err != nil:
-		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run mise run mise-check:03-init")
+		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run mise run mise-check:init")
 	case !pinLine.Match(b):
 		problems = append(problems, ".mise/config.toml doesn't pin "+self+": add it, mise use --path .mise/config.toml "+self+"@latest")
 	}

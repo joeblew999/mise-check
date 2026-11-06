@@ -99,7 +99,7 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		return
 	}
 	if b, a := selfPin(before), selfPin(after); a != b {
-		fmt.Printf("mise-check moved from %s to %s: mise run mise-check:03-init writes its files again (04-check fails until it has)\n", b, a)
+		fmt.Printf("mise-check moved from %s to %s: mise run mise-check:init writes its files again (04-check fails until it has)\n", b, a)
 	}
 	lines, n := moved(before, after)
 	if len(lines) == 0 {

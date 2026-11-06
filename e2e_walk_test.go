@@ -1,6 +1,6 @@
 // mise-check's end-to-end test, at the top of the repo as mise-cloudflare's is (package misecheck_test, as the
 // package misecheck is the folder's own), on its own walk package (github.com/joeblew999/mise-check/walk), as
-// mise-cloudflare's is: the template's numbered tasks through the repo's own mise file, on the template where it is
+// mise-cloudflare's is: the tasks a repo meets in turn, through the repo's own mise file, on the template where it is
 // (mise run template:e2e) and on a new repo made from nothing as docs/mise-check/README.md says (mise run
 // new-repo:e2e); and update on a new repo given old pins of every kind, each moved (mise run new-repo:e2e-update).
 // Without REPO_PATH every test here skips, so go test ./... never walks.
@@ -20,44 +20,43 @@ import (
 	"github.com/joeblew999/mise-check/walk"
 )
 
-// miseCheckWalk is the walk: the template's numbered tasks (templates/.mise/tasks/mise-check.toml), in their order,
-// each checked by what a person would see it do.
+// miseCheckWalk is the walk: the tasks a repo meets in turn (templates/.mise/tasks/mise-check.toml), init, check and
+// show, each checked by what a person would see it do.
 var miseCheckWalk = walk.Walk[*walker]{Steps: steps, New: newRepo, Prepare: withGo, Of: func(r walk.Repo) *walker { return &walker{r} }}
 
-func TestWalk(t *testing.T)  { miseCheckWalk.Run(t) }
-func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/mise-check.toml", steps) }
+func TestWalk(t *testing.T) { miseCheckWalk.Run(t) }
 
 // walker is mise-check's walk of a repo: what each step's Check is given.
 type walker struct{ walk.Repo }
 
-// steps are the template's numbered tasks, each checked. TestSteps fails unless they're exactly those, in their order.
+// steps are the tasks a repo meets in turn, each checked; misecheck (GO_CALLERS) checks each name is a task.
 var steps = []walk.Step[*walker]{
-	{Task: "mise-check:03-init", Check: func(w *walker) {
+	{Task: "mise-check:init", Check: func(w *walker) {
 		before := w.Snapshot("node_modules")
-		w.MustTask("mise-check:03-init")
+		w.MustTask("mise-check:init")
 		if changed := walk.Diff(before, w.Snapshot("node_modules")); len(changed) > 0 {
-			w.T.Fatalf("mise-check:03-init changed %s: the repo isn't what init writes", strings.Join(changed, ", "))
+			w.T.Fatalf("mise-check:init changed %s: the repo isn't what init writes", strings.Join(changed, ", "))
 		}
-		w.Pass("mise-check:03-init changed nothing: the repo is what init writes")
+		w.Pass("mise-check:init changed nothing: the repo is what init writes")
 	}},
-	{Task: "mise-check:04-check", Check: func(w *walker) {
-		if out := w.MustTask("mise-check:04-check"); !strings.Contains(out, "rules: pass") {
-			w.T.Fatalf("mise-check:04-check: %s", out)
+	{Task: "mise-check:check", Check: func(w *walker) {
+		if out := w.MustTask("mise-check:check"); !strings.Contains(out, "rules: pass") {
+			w.T.Fatalf("mise-check:check: %s", out)
 		}
-		w.Pass("mise-check:04-check: the rules pass")
+		w.Pass("mise-check:check: the rules pass")
 		w.MustTask("mise-check:verify")
 		w.Pass("mise-check:verify: what the repo's GitHub workflow runs passes (its setup and test tasks, then check)")
 	}},
-	{Task: "mise-check:05-show", Check: func(w *walker) {
+	{Task: "mise-check:show", Check: func(w *walker) {
 		var s struct {
 			App  bool
 			Next string
 		}
-		w.TaskJSON(&s, "mise-check:05-show", "--json")
+		w.TaskJSON(&s, "mise-check:show", "--json")
 		if !s.App || s.Next != "mise run mise-check:update" {
-			w.T.Fatalf("mise-check:05-show --json: %+v", s)
+			w.T.Fatalf("mise-check:show --json: %+v", s)
 		}
-		w.Pass("mise-check:05-show says next: %s", s.Next)
+		w.Pass("mise-check:show says next: %s", s.Next)
 		if out := w.MustTask("start"); !strings.Contains(out, "hello, app") {
 			w.T.Fatalf("the app (mise run start): %s", out)
 		}

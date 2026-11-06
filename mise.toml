@@ -6,7 +6,7 @@
 #   mise run tool:build        the binary, bin/mise-check (.exe on Windows)
 #   mise run tool:install      that build as the mise version local, the template's on this machine (and any repo's)
 #   mise run template:check-mise   misecheck on the template's tasks against the binary's Go, and the walk that runs them
-#   mise run template:e2e      TestWalk on the template, templates/, where it is: its numbered tasks, each checked
+#   mise run template:e2e      TestWalk on the template, templates/, where it is: init, check and show, each checked
 #   mise run new-repo:e2e      TestWalk on a new repo made from nothing (mise-check init, then mise-check:template)
 #   mise run template:e2e-update   the template where it is given old pins of every kind: each update moves its own
 #   mise run new-repo:e2e-update   a new repo given old pins of every kind (node, wrangler, Go modules, a major among
@@ -51,13 +51,13 @@ env = { MISE_FILE = "templates/.mise/tasks/mise-check.toml", GO_CMD = "cmd", GO_
 run = 'go test . -run "^TestMise$" -count=1 -v'
 
 [tasks."template:e2e"]
-description = "TestWalk on the template, templates/, where it is: its numbered tasks (mise-check:03-init to update) in their order, through its own mise file, each checked (walk_test.go). After tool:install"
+description = "TestWalk on the template, templates/, where it is: the tasks a repo meets in turn (mise-check:init, check, show), through its own mise file, each checked (e2e_walk_test.go). After tool:install"
 depends = ["tool:install"]
 env = { REPO_PATH = "templates" }
 run = 'go test . -run "^TestWalk$" -count=1 -v -timeout 15m'
 
 [tasks."new-repo:e2e"]
-description = "TestWalk on a new repo, made from nothing as docs/mise-check/README.md says (an empty folder with its own git, mise-check init at this checkout's build, then mise-check:template: its app, packages and go.mod), its numbered tasks each checked. At this checkout's build, or the release --version names, as new-repo.yml tries each release. Gone after it. After tool:install"
+description = "TestWalk on a new repo, made from nothing as docs/mise-check/README.md says (an empty folder with its own git, mise-check init at this checkout's build, then mise-check:template: its app, packages and go.mod), its tasks init, check and show each checked. At this checkout's build, or the release --version names, as new-repo.yml tries each release. Gone after it. After tool:install"
 usage = 'flag "--version <version>" help="make it at this release of mise-check from GitHub, as mise exec does, instead of the build of this checkout"'
 depends = ["tool:install"]
 env = { REPO_PATH = "templates", E2E_STAMPED = "true" }

@@ -172,10 +172,10 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 
 ### Tests
 
-**The walk** ([e2e_walk_test.go](e2e_walk_test.go)), on this repo's own `walk`. A repo's steps are its numbered
-tasks, `mise-check:03-init`, `04-check` and `05-show`
-([templates/.mise/tasks/mise-check.toml](templates/.mise/tasks/mise-check.toml)), after steps 00 to 02 (the repo's
-git, `mise install`, its own `setup`). One name all the way through: `mise-check:04-check` runs `mise-check check`,
+**The walk** ([e2e_walk_test.go](e2e_walk_test.go)), on this repo's own `walk`. A repo meets
+`mise-check:init`, `mise-check:check` and `mise-check:show` in turn
+([templates/.mise/tasks/mise-check.toml](templates/.mise/tasks/mise-check.toml)), after its git, `mise install` and
+its own `setup`. One name all the way through: `mise-check:check` runs `mise-check check`,
 which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
 
 - **The template**, [templates/](templates/), in place.

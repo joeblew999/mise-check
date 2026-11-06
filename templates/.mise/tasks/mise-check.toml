@@ -1,6 +1,5 @@
 # This repo's pins and mise tasks, with mise-check. Start with: mise run mise-check (what's done, and what to run next).
-# One task per command, numbered in the order a repo meets them: mise run mise-check:<nn>-<command> runs
-# mise-check <command>. Steps 00 to 02 come before these tasks: the repo's git, mise install, its own setup.
+# One task per command: mise run mise-check:<command> runs mise-check <command>.
 # Each passes its usage values with mise's own templates ({{usage.<name>}}), never shell syntax, so it runs the same
 # under sh, cmd and PowerShell.
 # Written by mise-check (github.com/joeblew999/mise-check): don't edit it. .mise/config.toml pins its version.
@@ -10,17 +9,17 @@ description = "Start here: what's done for this repo, and what to run next (mise
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check{% if usage.json %} --json{% endif %}'
 
-["mise-check:03-init"]
-description = "03. mise-check's files written into the repo again, after upgrading it (the first time, before these tasks: mise exec github:joeblew999/mise-check@latest -- mise-check init)"
+["mise-check:init"]
+description = "mise-check's files written into the repo again, after upgrading it (the first time, before these tasks: mise exec github:joeblew999/mise-check@latest -- mise-check init)"
 run = "mise-check init"
 
-["mise-check:04-check"]
-description = "04. The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), init's files current, and .mise/config.toml pinning mise-check"
+["mise-check:check"]
+description = "The repo's rules: its own mise files by misecheck (each task one line, its usage passed by name, no POSIX shell syntax, so it runs the same on macOS, Linux and Windows), init's files current, and .mise/config.toml pinning mise-check"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check check{% if usage.json %} --json{% endif %}'
 
-["mise-check:05-show"]
-description = "05. What's done for this repo, and what to run next"
+["mise-check:show"]
+description = "What's done for this repo, and what to run next"
 usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'mise-check show{% if usage.json %} --json{% endif %}'
 

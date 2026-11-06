@@ -129,8 +129,8 @@ func TestBroken(t *testing.T) {
 		want    string
 	}{
 		{"a task renamed, and Go still runs it by its old name",
-			edit(tasksFile, `:05-show"]`, `:05-view"]`),
-			"05-show, which isn't a task"},
+			edit(tasksFile, `:show"]`, `:view"]`),
+			"mise-check:show, which isn't a task"},
 		{"a command's Go deleted, and its task still runs it",
 			func(dir string) { os.Remove(filepath.Join(dir, "cmd", "mise-check", "show_version.go")) },
 			"and there's none there"},
@@ -158,7 +158,7 @@ run = 'mise-check show-version{% if usage.color %} --color{% endif %}`),
 			},
 			"is a command of mise-check"},
 		{"a task name glued together from pieces in Go",
-			edit("e2e_walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"05-show\"\n\nvar (_ = glued"),
+			edit("e2e_walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"show\"\n\nvar (_ = glued"),
 			"builds a task name from pieces"},
 	} {
 		t.Run(c.name, func(t *testing.T) {

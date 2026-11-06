@@ -6,7 +6,7 @@
 #     mise run template:check-mise   misecheck on its tasks file against greet's Go, and against the walk that runs them
 #   new-repo: a new repo, made from nothing as docs/greet/README.md says, by the walk and gone after it
 #     mise run new-repo:e2e          TestWalk on it, made at this checkout
-#   tool: greet itself, its command and its module
+#   tool: greet itself, one Go module: its command (cmd/greet) and its package (greet/)
 #     mise run tool:test             go vet, and its Go tests (none of them walk)
 #   root: this file
 #     mise run root:check-mise       misecheck on this very file

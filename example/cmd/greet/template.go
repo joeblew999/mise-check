@@ -10,7 +10,7 @@ import (
 	"github.com/joeblew999/mise-check/example"
 )
 
-// template is greet template: the template's little app, a Go program that imports the module half, written into a
+// template is greet template: the template's little app, a Go program that imports greet's package, written into a
 // repo with no Go program yet (no main.go), so the repo runs straight away. It never writes over a file: a repo with
 // a program of its own gets none of it, and a mise.toml of the repo's own is left as it is, with what to add. README.md,
 // the repo's front page, goes in whenever the repo has none, under the repo's name.

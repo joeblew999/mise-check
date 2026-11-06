@@ -9,11 +9,13 @@ and change what's greet's.
 
 ## What a repo using the tool needs: only its Go module
 
-**mise is optional.** greet has two halves at one version, its command and its module, and one line of a repo's
-`go.mod` pins both:
+**mise is optional.** greet is one Go module, and there's no binary: nothing is built ahead or published. The module
+has a command in it (`cmd/greet`, a `main` package, which Go builds from the module when the repo runs `go tool greet`)
+and a package a Go program imports (`greet/`). One line of a repo's `go.mod` pins the module, so both are always the
+same version:
 
 ```sh
-go get -tool github.com/joeblew999/mise-check/example/cmd/greet@latest   # the tool line: command and module
+go get -tool github.com/joeblew999/mise-check/example/cmd/greet@latest   # the tool line: greet's module, at one version
 go tool greet init                                                       # greet's files (tasks, workflow, hook, skill, docs)
 go tool greet                                                            # what's done, and what to run next
 ```
@@ -26,8 +28,8 @@ go tool greet                                                            # what'
 | Upgrading | as any Go module: `go get -tool …/cmd/greet@latest`, then `go tool greet init` | `go tool greet check` says when greet's files are stale |
 | With mise | the same commands as tasks, numbered: `mise run greet:06-hello` runs `go tool greet hello` | misecheck, here |
 
-The command comes from the module, never a release binary: a binary's command line isn't checked when it's used, and
-a module is. A repo never gets this folder's `mise.toml`: that is only for working on greet.
+Never a release binary: a binary's command line isn't checked when it's used, and a module is, by `go.sum` and the
+compiler. A repo never gets this folder's `mise.toml`: that is only for working on greet.
 
 ## Run it
 
@@ -49,19 +51,19 @@ And in the template itself, as a person in a repo with greet does: `cd templates
 |---|---|---|
 | [mise.toml](mise.toml) | The tool repo's own tasks, only for working on the tool (noun:verb): `template:e2e`, `new-repo:e2e`, `template:check-mise`, `tool:test`, `root:check-mise` | greet's name in the descriptions |
 | [cmd/greet/](cmd/greet/) | The command, `go tool greet`, one file per command, holding the function named for it: `init.go`, `check.go`, `show.go`, `hello.go`, `bye.go`, `template.go`, `verify.go`, `show_help.go`, `show_version.go` | Keep `init`, `check`, `show`, `template`, `verify`, `show-help`, `show-version`; replace `hello` and `bye` with the tool's own work |
-| [greet/](greet/) | The module half, which a Go program imports | The tool's own package |
+| [greet/](greet/) | The package a Go program imports (`greet.Hello`), in the same module as the command | The tool's own package |
 | [templates/](templates/) | The template: a whole repo that runs where it is, a folder of this module with no `go.mod` of its own (`go tool greet` runs here from this module's tool line) | Everything greet's |
 | `templates/.mise/tasks/greet.toml` | The numbered tasks, each one line, `go tool greet <command>`: `greet` (start here), `greet:03-init` … `greet:07-bye`, `greet:verify`, `greet:template`, `greet:show-*` | The tool's own steps, in the order a repo meets them |
 | `templates/.mise/config.toml` | Only has mise install the Go `go.mod` names | Nothing |
 | `templates/.github/workflows/greet.yml`, `.claude/`, `docs/greet/` | The repo's workflow (`mise run greet:verify`), Claude Code's hook and skill, and its docs: all written by `greet init`, never edited in a repo | greet's name |
 | `templates/main.go`, `main_test.go`, `mise.toml`, `README.md` | The template's little app, which imports the module half: `greet template` writes it into a repo with no Go program yet | The tool's own little example |
-| [templates.go](templates.go) | Embeds the template's two halves, `Tool` (init writes it) and `App` (template writes it). It's here, one level up, because the template's app is its own package | The file lists |
+| [templates.go](templates.go) | Embeds the template's two parts, `Tool` (the tool's files: init writes them) and `App` (the little app: template writes it). It's here, one level up, because the template's app is its own package | The file lists |
 | [walk_test.go](walk_test.go) | The walk: the template's numbered tasks as steps, each checked; how a person makes a new repo; `TestSteps` (the steps are exactly the numbered tasks) | The tool's own steps and checks |
 | [mise_test.go](mise_test.go) | All a repo writes to use misecheck: one line | Nothing |
 
 So it goes both ways, several levels deep: `mise run template:e2e` (this folder's `mise.toml`) runs `TestWalk`
 (`walk_test.go`), which runs the template's tasks by name (`mise run greet:06-hello`, in `templates/`), which run
-greet's Go (`go tool greet hello`, `cmd/greet/hello.go`), which is the module half (`greet.Hello`). misecheck checks
+greet's Go (`go tool greet hello`, `cmd/greet/hello.go`), which is the package `greet` (`greet.Hello`). misecheck checks
 every one of those links (`template:check-mise`, `root:check-mise`).
 
 ## Break it

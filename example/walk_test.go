@@ -1,8 +1,10 @@
 package example
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -13,7 +15,7 @@ import (
 // the repo's own mise file, each checked by what a person would see it do; on the template where it is (mise run
 // template:e2e), and on a new repo made from nothing as docs/greet/README.md says (mise run new-repo:e2e). The walk
 // package does the rest.
-var greetWalk = walk.Walk[*greeter]{Steps: steps, New: newRepo, Of: func(r walk.Repo) *greeter { return &greeter{r} }}
+var greetWalk = walk.Walk[*greeter]{Steps: steps, New: newRepo, Prepare: withGo, Of: func(r walk.Repo) *greeter { return &greeter{r} }}
 
 func TestWalk(t *testing.T)  { greetWalk.Run(t) }
 func TestSteps(t *testing.T) { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
@@ -66,6 +68,18 @@ var steps = []walk.Step[*greeter]{
 		}
 		g.Pass("greet:07-bye: bye")
 	}},
+}
+
+// withGo gives the template, where it is, the Go of the module it's a folder of. It has no go.mod of its own, and the
+// walk cuts mise off from the repo around it, so its own mise files have no Go to give its tasks (go tool greet …);
+// the Go this test runs with is that module's (its toolchain line). A new repo has a go.mod of its own, whose Go mise
+// installs (.mise/config.toml), so it needs nothing.
+func withGo(r walk.Repo) walk.Repo {
+	if _, err := os.Stat(filepath.Join(r.Dir, "go.mod")); err == nil {
+		return r
+	}
+	r.With = append(r.With, "MISE_GO_VERSION="+strings.TrimPrefix(runtime.Version(), "go"))
+	return r
 }
 
 // greetTool is greet's tool line: the one line of a repo's go.mod that pins the command and the module.

@@ -21,7 +21,7 @@ The tasks are numbered in the order a repo meets them, and each runs the command
 ## Never
 
 - Never install greet another way (`go install`, a binary on the PATH): it runs as `go tool greet`, at the version
-  `go.mod` pins, so the command and the module are always the same release.
+  `go.mod` pins, so the command and the package are always the same release of one module.
 - Never edit what `go tool greet init` writes: `.mise/tasks/greet.toml`, `docs/greet/`, this skill,
   `.github/workflows/greet.yml` and the Claude Code hook. After upgrading greet, run `go tool greet init`,
   which writes them again.

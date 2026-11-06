@@ -26,7 +26,7 @@ usage = 'flag "--json" help="one JSON document on stdout, instead of text"'
 run = 'go tool greet show{% if usage.json %} --json{% endif %}'
 
 ["greet:06-hello"]
-description = "06. Greet someone: the module half's greet.Hello, on the command line"
+description = "06. Greet someone: greet's package's greet.Hello, on the command line"
 usage = 'flag "--name <name>" help="who to greet"; flag "--shout" help="in capitals"'
 run = 'go tool greet hello{% if usage.name %} --name "{{usage.name}}"{% endif %}{% if usage.shout %} --shout{% endif %}'
 

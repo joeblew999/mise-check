@@ -1,11 +1,12 @@
 // Package example is mise-check's reference for a mise tool whose users are Go repos: copy this folder to start one,
 // and change what's greet's. Read README.md here.
 //
-// The tool, greet, has two halves at one version: its command (cmd/greet), which a repo runs as go tool greet, and its
-// module (greet/), which a Go program imports; one line of the repo's go.mod pins both, checked by go.sum and the
-// compiler. Its template (templates/) is a whole repo that runs where it is, in two halves too: the tool's half, which
-// greet init writes into any repo (the numbered tasks, the GitHub workflow, the Claude Code hook and skill, the docs),
-// and the template's little app, which greet template writes into a repo with no Go program yet. The template is a
+// The tool, greet, is one Go module with no binary: its command (cmd/greet), which Go builds from the module when a
+// repo runs go tool greet, and its package (greet/), which a Go program imports. One line of the repo's go.mod pins the
+// module, checked by go.sum and the compiler. Its template (templates/) is a whole repo that runs where it is, in two
+// parts: the tool's files, which greet init writes into any repo (the numbered tasks, the GitHub workflow, the Claude
+// Code hook and skill, the docs), and the template's little app, which greet template writes into a repo with no Go
+// program yet. The template is a
 // folder of this module, with no go.mod of its own, so this file, which embeds it, is here, one level up.
 package example
 

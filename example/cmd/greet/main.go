@@ -1,7 +1,8 @@
 // Command greet is the example's tool, the reference for a tool whose users are Go repos. A repo gets it from its
 // module, with one line of its go.mod (go get -tool github.com/joeblew999/mise-check/example/cmd/greet), and runs it
-// as go tool greet <command>: the version go.mod pins, checked by go.sum, the same version as the module half a Go
-// program imports (github.com/joeblew999/mise-check/example/greet). No mise is needed for any of it. A repo that uses
+// as go tool greet <command>: Go builds it from the module, at the version go.mod pins, checked by go.sum. There's no
+// binary to install. The package a Go program imports (github.com/joeblew999/mise-check/example/greet) is in the same
+// module, so it's always the same version. No mise is needed for any of it. A repo that uses
 // mise gets each command as a task too, numbered in the order a repo meets them (.mise/tasks/greet.toml, written by
 // greet init): mise run greet:<nn>-<command> runs go tool greet <command>. greet show-help lists the commands.
 //
@@ -21,7 +22,7 @@ import (
 	"strings"
 )
 
-// module is the module greet comes from, and its tool line: the one line of a repo's go.mod that pins both halves.
+// module is the module greet comes from, and its tool line: the one line of a repo's go.mod that pins greet's module.
 const (
 	module = "github.com/joeblew999/mise-check"
 	tool   = module + "/example/cmd/greet"

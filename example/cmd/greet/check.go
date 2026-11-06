@@ -6,7 +6,7 @@ import (
 )
 
 // check is greet check (04): the repo's rules, each with what fixes it. greet's files are the ones this version writes
-// (go tool greet init writes them again), and the repo's go.mod has greet's tool line, the one pin of both halves.
+// (go tool greet init writes them again), and the repo's go.mod has greet's tool line, the one pin of greet's module.
 func check(dir string, jsonOut bool) {
 	problems := rules(dir)
 	if jsonOut {
@@ -35,7 +35,7 @@ func rules(dir string) []string {
 	case path == "":
 		problems = append(problems, errNoModule.Error())
 	case !hasTool(text):
-		problems = append(problems, path+" has no tool line for greet, the one pin of the command and the module: go get -tool "+tool+"@latest")
+		problems = append(problems, path+" has no tool line for greet, the one pin of greet's module, its command and its package: go get -tool "+tool+"@latest")
 	}
 	return append(problems, stale(dir)...)
 }

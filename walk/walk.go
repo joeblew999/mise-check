@@ -53,6 +53,9 @@ type Repo struct {
 	Top  string // the tool's checkout, where the test runs
 	Name string // the repo, as the walk names it: its folder in Top (templates), or a new repo's
 	Dir  string // its folder
+	// With is env every command in the repo gets, after Env's own: what the tool's Prepare gives it (the Go of the
+	// module a template is a folder of, say).
+	With []string
 }
 
 // At is the repo at path, a folder of the checkout the test runs in: the template, where it is. The task that runs the
@@ -96,8 +99,8 @@ func (r Repo) New(folder string) Repo {
 // files only (MISE_CEILING_PATHS, its parent), trusting them (MISE_TRUSTED_CONFIG_PATHS) and asking nothing
 // (MISE_YES), then env.
 func (r Repo) Env(env ...string) []string {
-	return append(append(os.Environ(),
-		"MISE_CEILING_PATHS="+filepath.Dir(r.Dir), "MISE_TRUSTED_CONFIG_PATHS="+r.Dir, "MISE_YES=1"), env...)
+	out := append(os.Environ(), "MISE_CEILING_PATHS="+filepath.Dir(r.Dir), "MISE_TRUSTED_CONFIG_PATHS="+r.Dir, "MISE_YES=1")
+	return append(append(out, r.With...), env...)
 }
 
 // Exec runs a command in dir with env (the whole environment), input on its stdin, its output shown as it goes and
@@ -245,7 +248,10 @@ type Walk[W any] struct {
 	Steps  []Step[W]
 	Stages []string                          // the stages, as E2E_STAGE names them, in order; none, one stage
 	New    func(r Repo, version string) Repo // a new repo, made from nothing at version ("": this checkout's build)
-	Of     func(r Repo) W                    // the tool's walk of a repo, which each Check is given
+	// Prepare, when there is one, makes the repo ready before it's set up: env it needs (Repo.With) that its own
+	// mise files can't give it, cut off from the repo around it.
+	Prepare func(r Repo) Repo
+	Of      func(r Repo) W // the tool's walk of a repo, which each Check is given
 }
 
 // Run walks the repo the task that runs the test names: REPO_PATH, a folder of this checkout (templates, the template
@@ -272,6 +278,9 @@ func (w Walk[W]) Run(t *testing.T) {
 		r = w.New(r, *Version)
 	case *Version != "":
 		t.Fatalf("-version %s is the release a new repo is made at: E2E_STAMPED=true too", *Version)
+	}
+	if w.Prepare != nil {
+		r = w.Prepare(r)
 	}
 	r.SetUp()
 	Steps(r, w.Of(r), w.Steps, upTo)

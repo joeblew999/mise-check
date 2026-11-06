@@ -1,5 +1,5 @@
-// Package greet is the module half of the example's tool: what a Go program imports, at the same version as the
-// command it runs (go tool greet), both from one line of its go.mod. The template's app imports it
+// Package greet is what a Go program imports of the example's tool. It's in the same module as the command
+// (go tool greet), so one line of a repo's go.mod pins both at one version. The template's app imports it
 // (templates/main.go), and the command's hello and bye are this, on the command line.
 package greet
 

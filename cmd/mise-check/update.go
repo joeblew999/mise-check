@@ -166,14 +166,14 @@ func (r repo) pins(mods []string) map[string]string {
 	for _, m := range mods {
 		var mod struct {
 			Go        string
-			Toolchain struct{ Name string }
+			Toolchain string // go mod edit -json writes it as a string: "go1.27.3"
 			Require   []struct{ Path, Version string }
 		}
 		if json.Unmarshal([]byte(r.miseIn(m, "exec", "--", "go", "mod", "edit", "-json")), &mod) != nil {
 			continue
 		}
 		file := filepath.ToSlash(filepath.Join(r.rel(m), "go.mod"))
-		p[file+" toolchain"] = strings.TrimPrefix(cmp.Or(mod.Toolchain.Name, "go"+mod.Go), "go")
+		p[file+" toolchain"] = strings.TrimPrefix(cmp.Or(mod.Toolchain, "go"+mod.Go), "go")
 		for _, req := range mod.Require {
 			p[file+" "+req.Path] = req.Version
 		}

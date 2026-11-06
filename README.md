@@ -64,26 +64,10 @@ that's new or has code of its own:
 Commit what steps 2 and 3 wrote. Whenever you want the pins moved: `mise run mise-check:update`, then
 `mise run mise-check:verify`, which runs what GitHub runs.
 
-`init` writes everything your repo gets, its own docs among them: `docs/mise-check/README.md`. That page is
-[templates/docs/mise-check/README.md](templates/docs/mise-check/README.md) here, in the template, just as a repo has it.
-
-## What update moves
-
-Each tool on the repo's own config only (`MISE_CEILING_PATHS`): nothing outside the repo moves. In CI it doesn't run:
-CI only checks.
-
-`mise-check:update` runs all three, in this order; each is a task of its own too.
-
-| Task | Acts on | How | `--pick` | `--no-major` |
-|---|---|---|---|---|
-| `mise-check:mise-update` | mise tools | `mise upgrade --bump --no-global` (mise-check's own pin among them; at `local` it stays) | `--interactive` | (mise's own ranges) |
-| `mise-check:packages-update` | Node packages | `aube update --latest`, when there's a `package.json` (aube pinned in the repo's mise) | `--interactive` | without `--latest`: within each range |
-| `mise-check:go-update` | Go and its modules | in every go.mod (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder): `go get toolchain@latest` (the `go` line, the module's least Go, stays), then `go mod tidy`, go-mod-upgrade `--force --cooldown 7d`, `go mod tidy` | go-mod-upgrade's own picker | `--no-major` |
-
-go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. It's pinned once, on mise-check's own
-go.mod tool line, and run at that version (`go run …@version`): a repo needs no line of its own for it, which would
-raise the repo's `go` line and add the upgrader's modules to its go.mod. A newer mise-check brings a newer
-go-mod-upgrade.
+`init` writes everything your repo gets, its own docs among them: `docs/mise-check/README.md`, with every command,
+what each update moves and how, and its flags. That page is
+[templates/docs/mise-check/README.md](templates/docs/mise-check/README.md) here, in the template, just as a repo has
+it: the one place for how to use mise-check, so this README doesn't repeat it.
 
 ## Use misecheck
 

@@ -60,5 +60,14 @@ It ends with every pin, the moved ones before → after, majors marked. `git dif
 mise-check:verify` proves them, as a major move can break the repo's own code. mise-check's own pin moves with the
 rest: then `mise run mise-check:03-init` writes its files again. In CI it doesn't run: CI only checks.
 
+go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. mise can't write a `go.mod` (its
+idiomatic version file for Go), so `mise-update` leaves Go to `go-update`.
+
+| Task | `--pick` | `--no-major` |
+|---|---|---|
+| `mise-update` | `mise upgrade --interactive` | (mise's own ranges) |
+| `packages-update` | `aube update --interactive` | without `--latest`: each package within its range |
+| `go-update` | go-mod-upgrade's own picker | go-mod-upgrade `--no-major` |
+
 go-mod-upgrade is pinned once, in mise-check's own `go.mod`, and run at that version: the repo needs no line of its
 own for it. A newer mise-check brings a newer go-mod-upgrade.

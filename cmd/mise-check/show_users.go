@@ -69,7 +69,7 @@ func (r repo) showUsers(jsonOut bool) {
 			if u.Go == "" && u.Mise == "" {
 				return
 			}
-			pin := strings.Fields(u.Mise + " ")[0]
+			pin, _, _ := strings.Cut(u.Mise, " ") // "0.4.2 (.mise/config.toml)": its version; "" with no mise pin
 			u.Behind = newest != "" && ((u.Go != "" && older(u.Go, newest)) || (pin != "" && pin != "latest" && pin != "local" && older(pin, newest)))
 			mu.Lock()
 			users = append(users, u)

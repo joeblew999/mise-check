@@ -18,8 +18,9 @@ by hand. And a repo's mise tasks drift from the Go they run, and work on one OS 
    (`mise upgrade --bump`), its Node packages ([aube](https://github.com/aubepkg/aube), whichever lockfile the repo
    has), and in every go.mod its Go and its modules, majors too, their import paths rewritten
    ([go-mod-upgrade](https://github.com/oligot/go-mod-upgrade)). It ends with every pin, the moved ones before → after.
-   A developer who wants a say chooses: `--only mise|packages|go`, `--pick` (asked for each, with each tool's own
-   picker), `--no-major`. That's the binary, `mise-check`, which one command adds to a repo, as
+   A developer who wants a say moves one kind only, each its own task named for what it acts on
+   (`mise-check:mise-update`, `mise-check:packages-update`, `mise-check:go-update`), is asked for each one
+   (`--pick`, with each tool's own picker), or takes no majors (`--no-major`). That's the binary, `mise-check`, which one command adds to a repo, as
    [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is added: from then on every step is a mise task,
    and `mise run mise-check` shows where the repo is.
 2. **Checks a repo's mise tasks against the Go they run, both ways, and walks them end to end**: two Go packages a
@@ -71,11 +72,13 @@ Commit what steps 2 and 3 wrote. Whenever you want the pins moved: `mise run mis
 Each tool on the repo's own config only (`MISE_CEILING_PATHS`): nothing outside the repo moves. In CI it doesn't run:
 CI only checks.
 
-| Pins | How | `--pick` | `--no-major` |
-|---|---|---|---|
-| mise tools (`--only mise`) | `mise upgrade --bump --no-global` (mise-check's own pin among them; at `local` it stays) | `--interactive` | (mise's own ranges) |
-| Node packages (`--only packages`) | `aube update --latest`, when there's a `package.json` (aube pinned in the repo's mise) | `--interactive` | without `--latest`: within each range |
-| Go (`--only go`) | in every go.mod (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder): `go get toolchain@latest` (the `go` line, the module's least Go, stays), then `go mod tidy`, go-mod-upgrade `--force --cooldown 7d`, `go mod tidy` | go-mod-upgrade's own picker | `--no-major` |
+`mise-check:update` runs all three, in this order; each is a task of its own too.
+
+| Task | Acts on | How | `--pick` | `--no-major` |
+|---|---|---|---|---|
+| `mise-check:mise-update` | mise tools | `mise upgrade --bump --no-global` (mise-check's own pin among them; at `local` it stays) | `--interactive` | (mise's own ranges) |
+| `mise-check:packages-update` | Node packages | `aube update --latest`, when there's a `package.json` (aube pinned in the repo's mise) | `--interactive` | without `--latest`: within each range |
+| `mise-check:go-update` | Go and its modules | in every go.mod (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder): `go get toolchain@latest` (the `go` line, the module's least Go, stays), then `go mod tidy`, go-mod-upgrade `--force --cooldown 7d`, `go mod tidy` | go-mod-upgrade's own picker | `--no-major` |
 
 go-mod-upgrade skips `// indirect` lines, so the first `go mod tidy` is needed. It's pinned once, on mise-check's own
 go.mod tool line, and run at that version (`go run …@version`): a repo needs no line of its own for it, which would
@@ -168,16 +171,16 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 
 | Task | What | When |
 |---|---|---|
-| `lib:test` | `go vet` and the Go tests: the checker (the template broken nine ways), the walk, the binary (none of them walk) | After every change |
-| `lib:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
+| `tool:test` | `go vet` and the Go tests: the checker (the template broken nine ways), the walk, the binary (none of them walk) | After every change |
+| `root:check-mise` | `TestMise` on this repo's own `mise.toml`: one line each, its Go there, `usage` passed by name, no POSIX shell syntax | After a change to this repo's tasks |
 | `template:check-mise` | `TestMise` on the template's tasks against the binary's Go and the walk that runs them, both ways | After a change to a task or a command |
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
 | `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
-| `new-repo:e2e-update` | A new repo given old pins of every kind: `mise-check:update` must move each, then `verify` pass | After a change to `update` |
+| `new-repo:e2e-update` | A new repo given old pins of every kind: `mise-update`, `packages-update` and `go-update` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to an update |
 | `tool:build` | This checkout's build, `bin/mise-check` | Any task needs it |
 | `tool:install` | That build as the mise version `local`, for any repo on this machine (`mise use github:joeblew999/mise-check@local` there) and the template's (`templates/.mise/config.local.toml`, never committed) | To try a change in another repo, never by waiting on a release |
-| `root:update` | This repo's own pins at their newest, by the binary's own update, from source | To move its pins; then `lib:test` and the walks |
+| `root:update` | This repo's own pins at their newest, by the binary's own update, from source | To move its pins; then `tool:test` and the walks |
 
 ### Tests
 
@@ -192,8 +195,9 @@ which is `main.go`'s `case "check"` calling `r.check` in `check.go`. It walks:
   then its own `mise-check:template`. Its `init` runs at this checkout's build (`local`), or at a release with
   `--version`, and pins itself in `.mise/config.toml`.
 - **A new repo with old pins** (`TestUpdate`): node 24.11.0 in `mise.toml`, wrangler 4.100.0 in `package.json`,
-  go-chi/chi v1.5.4 (imported by the app) and google/uuid v1.3.0 in go.mod. `mise-check:update` must move every one,
-  chi to `/v5` with the app's import rewritten, and `mise-check:verify` pass after. All real tools, nothing faked.
+  go-chi/chi v1.5.4 (imported by the app) and google/uuid v1.3.0 in go.mod. `mise-check:mise-update`,
+  `packages-update` and `go-update` must each move its own kind and nothing else, chi to `/v5` with the app's import
+  rewritten; then `mise-check:update` has nothing left to move, and `mise-check:verify` passes. All real tools, nothing faked.
 
 **The mise ↔ Go checker** on mise-check's own template ([misecheck_test.go](misecheck_test.go)): it passes, and a copy
 of it broken nine ways, one at a time, is caught each time.
@@ -213,8 +217,8 @@ of it broken nine ways, one at a time, is caught each time.
 Shell steps only, no JavaScript actions. Each workflow checks out and installs mise, then only runs the root mise, as
 on any machine:
 
-- [ci.yml](.github/workflows/ci.yml), on every push and pull request, on Linux, macOS and Windows: `lib:test`,
-  `lib:check-mise`, `template:check-mise`, `template:e2e`, `new-repo:e2e`, `new-repo:e2e-update`.
+- [ci.yml](.github/workflows/ci.yml), on every push and pull request, on Linux, macOS and Windows: `tool:test`,
+  `root:check-mise`, `template:check-mise`, `template:e2e`, `new-repo:e2e`, `new-repo:e2e-update`.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
   repo made the README's way at that release, walked, on Linux, macOS and Windows.
 - Releases, with goreleaser as mise-cloudflare's, aren't switched on yet: until then a repo runs this checkout's build

@@ -89,10 +89,11 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	return n
 }
 
-// TestUpdate is mise-check:update on a new repo given old pins of every kind it moves: a mise tool (node, in
-// mise.toml), a package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in
-// the app) and one a minor behind (google/uuid). Every one must move, chi to /v5 with its import rewritten, and
-// mise-check:verify must pass after. Run by mise run new-repo:e2e-update (E2E_UPDATE=true).
+// TestUpdate is the update commands on a new repo given old pins of every kind: a mise tool (node, in mise.toml), a
+// package (wrangler, in package.json), and Go modules, one a major behind (go-chi/chi v1, its import in the app) and
+// one a minor behind (google/uuid). mise-check:mise-update, packages-update and go-update must each move its own kind
+// and nothing else, chi to /v5 with its import rewritten; then mise-check:update has nothing left to move, and
+// mise-check:verify passes. Run by mise run new-repo:e2e-update (E2E_UPDATE=true).
 func TestUpdate(t *testing.T) {
 	path := os.Getenv("REPO_PATH")
 	if path == "" || os.Getenv("E2E_UPDATE") != "true" {
@@ -118,34 +119,66 @@ var router, id = chi.NewRouter(), uuid.NewString
 	n.Must("mise", "exec", "--", "go", "mod", "tidy")
 	n.Pass("node 24.11.0 (mise.toml), wrangler 4.100.0 (package.json), go-chi/chi v1.5.4 and google/uuid v1.3.0 (go.mod)")
 
-	// update refuses in CI, which only checks: here it's the walk's own repo, made to be updated.
-	out, err := n.Task(n.Env("CI="), "", "mise-check:update")
-	if err != nil {
-		t.Fatalf("mise-check:update: %v\n%s", err, out)
+	// Each of them refuses in CI, which only checks: here it's the walk's own repo, made to be updated.
+	update := func(task string) string {
+		t.Helper()
+		out, err := n.Task(n.Env("CI="), "", task)
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", task, err, out)
+		}
+		return out
 	}
-	for _, want := range []string{"node 24.11.0 → ", "wrangler 4.100.0 → ", "github.com/google/uuid v1.3.0 → ", "github.com/go-chi/chi v1.5.4 → none", "github.com/go-chi/chi/v5 none → v5."} {
-		if !strings.Contains(out, want) {
-			t.Errorf("mise-check:update didn't say %q", want)
+	moved := func(task, out string, want, not []string) {
+		t.Helper()
+		for _, w := range want {
+			if !strings.Contains(out, w) {
+				t.Errorf("%s didn't say %q", task, w)
+			}
+		}
+		for _, w := range not {
+			if strings.Contains(out, w) {
+				t.Errorf("%s moved what isn't its own: it said %q", task, w)
+			}
+		}
+		if t.Failed() {
+			t.FailNow()
 		}
 	}
-	gomod := read(t, filepath.Join(n.Dir, "go.mod"))
+	gomod := []string{"github.com/google/uuid v1.3.0 → ", "github.com/go-chi/chi v1.5.4 → none", "github.com/go-chi/chi/v5 none → v5."}
+
+	n.Heading("mise-check:mise-update: the mise tools, and nothing else")
+	moved("mise-check:mise-update", update("mise-check:mise-update"), []string{"node 24.11.0 → "}, append([]string{"wrangler 4.100.0 → "}, gomod...))
+	if strings.Contains(read(t, filepath.Join(n.Dir, "mise.toml")), `node = "24.11.0"`) {
+		t.Fatal("mise.toml still pins node 24.11.0")
+	}
+	n.Pass("node moved in mise.toml; wrangler and the Go modules stayed")
+
+	n.Heading("mise-check:packages-update: the Node packages, and nothing else")
+	moved("mise-check:packages-update", update("mise-check:packages-update"), []string{"wrangler 4.100.0 → "}, gomod)
+	if strings.Contains(read(t, filepath.Join(n.Dir, "package.json")), `"4.100.0"`) {
+		t.Fatal("package.json still pins wrangler 4.100.0")
+	}
+	n.Pass("wrangler moved in package.json and its lockfile; the Go modules stayed")
+
+	n.Heading("mise-check:go-update: Go and its modules, majors too")
+	moved("mise-check:go-update", update("mise-check:go-update"), gomod, nil)
+	gm := read(t, filepath.Join(n.Dir, "go.mod"))
 	deps := read(t, filepath.Join(n.Dir, "app", "deps.go"))
 	switch {
-	case !regexp.MustCompile(`github.com/go-chi/chi/v5 v5\.`).MatchString(gomod):
-		t.Errorf("go.mod has no go-chi/chi/v5:\n%s", gomod)
-	case strings.Contains(gomod, "github.com/google/uuid v1.3.0"):
-		t.Errorf("go.mod still has google/uuid v1.3.0:\n%s", gomod)
+	case !regexp.MustCompile(`github.com/go-chi/chi/v5 v5\.`).MatchString(gm):
+		t.Fatalf("go.mod has no go-chi/chi/v5:\n%s", gm)
+	case strings.Contains(gm, "github.com/google/uuid v1.3.0"):
+		t.Fatalf("go.mod still has google/uuid v1.3.0:\n%s", gm)
 	case !strings.Contains(deps, `"github.com/go-chi/chi/v5"`):
-		t.Errorf("app/deps.go's import of chi wasn't rewritten to /v5:\n%s", deps)
-	case strings.Contains(read(t, filepath.Join(n.Dir, "mise.toml")), `node = "24.11.0"`):
-		t.Error("mise.toml still pins node 24.11.0")
-	case strings.Contains(read(t, filepath.Join(n.Dir, "package.json")), `"4.100.0"`):
-		t.Error("package.json still pins wrangler 4.100.0")
+		t.Fatalf("app/deps.go's import of chi wasn't rewritten to /v5:\n%s", deps)
 	}
-	if t.Failed() {
-		t.FailNow()
+	n.Pass("google/uuid moved, and go-chi/chi to /v5 with app/deps.go's import rewritten")
+
+	n.Heading("mise-check:update: all three, and nothing is left to move")
+	if out := update("mise-check:update"); !strings.Contains(out, "nothing moved") {
+		t.Fatalf("mise-check:update after the three moved something more:\n%s", out)
 	}
-	n.Pass("every pin moved: node, wrangler, google/uuid, and go-chi/chi to /v5 with app/deps.go's import rewritten")
+	n.Pass("mise-check:update: nothing moved, each pin its newest")
 	n.MustTask("mise-check:verify")
 	n.Pass("mise-check:verify passes after: setup, the app's tests, then check")
 }

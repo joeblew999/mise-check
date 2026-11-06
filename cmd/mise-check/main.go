@@ -9,7 +9,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -26,8 +25,11 @@ The steps, in order (mise run mise-check says which is next):
   mise run mise-check:05-show     what's done, and what to run next (mise run mise-check, too)
 
 And:
-  mise run mise-check:update         every pin at its newest release: mise's tools, packages (aube), Go and Go modules,
-                                     majors too; --only mise|packages|go, --pick (ask for each), --no-major
+  mise run mise-check:update            every pin at its newest release, in one go: the three below, in order
+  mise run mise-check:mise-update       the mise tools, in the repo's mise files
+  mise run mise-check:packages-update   the Node packages, package.json and its lockfile (aube)
+  mise run mise-check:go-update         Go, in every go.mod: its toolchain line and modules, majors too (go-mod-upgrade)
+                                        each: --pick (ask for each one), --no-major (no major moves)
   mise run mise-check:verify         what the repo's GitHub workflow runs: its setup and test tasks, then check
   mise run mise-check:template       the template's little app, in a repo with no Go program yet: it never writes over a file
   mise run mise-check:show-version   this build's version
@@ -42,9 +44,8 @@ func main() {
 	}
 	flags := flag.NewFlagSet("mise-check "+command, flag.ExitOnError)
 	jsonOut := flags.Bool("json", false, "print one JSON document on stdout instead of text")
-	only := flags.String("only", "", "update: only these pins, mise (its tools), packages (aube) or go (Go and its modules)")
-	pick := flags.Bool("pick", false, "update: ask for each one, with each tool's own picker")
-	noMajor := flags.Bool("no-major", false, "update: no major moves (packages within their ranges, Go modules within their major)")
+	pick := flags.Bool("pick", false, "the updates: ask for each one, with the picker of each tool")
+	noMajor := flags.Bool("no-major", false, "the updates: no major moves (packages within their ranges, Go modules within their major)")
 	flags.Usage = func() { fmt.Fprint(os.Stderr, help) }
 	flags.Parse(args)
 	if flags.NArg() > 0 {
@@ -63,11 +64,21 @@ func main() {
 		sayNewest()
 	case "check":
 		r.check(*jsonOut)
-	case "update":
+	case "update", "mise-update", "packages-update", "go-update":
 		if inCI() {
-			fail(errors.New("in CI update doesn't run: CI only checks the repo, and update changes its pins; run mise run mise-check:update on your machine, then mise run mise-check:verify"))
+			fail(fmt.Errorf("in CI %s doesn't run: CI only checks the repo, and %s changes its pins; run mise run mise-check:%s on your machine, then mise run mise-check:verify", command, command, command))
 		}
-		r.update(updates{only: *only, pick: *pick, noMajor: *noMajor})
+		o := updates{pick: *pick, noMajor: *noMajor}
+		switch command {
+		case "update":
+			r.update(o)
+		case "mise-update":
+			r.miseUpdate(o)
+		case "packages-update":
+			r.packagesUpdate(o)
+		case "go-update":
+			r.goUpdate(o)
+		}
 	case "verify":
 		r.verify()
 	case "template":

@@ -57,10 +57,10 @@ jobs:
           mise --version
           mise install
 
-      - name: Its own tests, and itself on its own mise file (mise run lib:test, lib:check-mise)
+      - name: Its own tests, and itself on its own mise file (mise run tool:test, root:check-mise)
         run: |
-          mise run lib:test
-          mise run lib:check-mise
+          mise run tool:test
+          mise run root:check-mise
 
       - name: misecheck on the template's tasks, then the walk on the template and on a new repo, and update on old pins of every kind (mise run template:check-mise, template:e2e, new-repo:e2e, new-repo:e2e-update)
         run: |

@@ -27,19 +27,21 @@ const goModUpgrade = "github.com/oligot/go-mod-upgrade@v0.13.0"
 // than their minimum age.
 const cooldown = "7d"
 
-// update moves the repo's own pins to their newest releases, each with its own tool (mise reads no parent folder's
+// update is mise-check update: the repo's own pins to their newest releases, each with its own tool (mise reads no parent folder's
 // config, so nothing outside the repo moves): its mise tools (mise upgrade --bump), its packages (aube, which writes
 // whichever lockfile the repo has) when it has them, and in every go.mod of the repo: its Go (the toolchain line; the go
 // line, the least Go the module needs, stays) and its modules, majors too, with go-mod-upgrade, which rewrites a major's
 // import paths (go mod tidy before, as it skips // indirect lines, and after). mise-check at local, a checkout's build,
 // stays there; moved to a newer release, it says to write init's files again (03-init), which it doesn't do itself.
 // It ends with what moved; git diff shows it, and mise run mise-check:verify proves it (a major move can break).
-// A developer who wants a say chooses with its flags (updates): one kind of pin only, each one asked, or no majors.
-func (r repo) update(o updates) {
-	if !slices.Contains([]string{"", "mise", "packages", "go"}, o.only) {
-		fail(fmt.Errorf("--only %s: it's mise, packages or go", o.only))
-	}
-	does := func(kind string) bool { return o.only == "" || o.only == kind }
+// A developer who wants a say moves one kind only (mise-update, packages-update, go-update), is asked for each one
+// (--pick), or takes no majors (--no-major).
+func (r repo) update(o updates) { r.updatePins(o, "mise", "packages", "go") }
+
+// updatePins moves the pins of the kinds named, in that order, and ends with every pin: update moves all three,
+// mise-update, packages-update and go-update one each.
+func (r repo) updatePins(o updates, kinds ...string) {
+	does := func(kind string) bool { return slices.Contains(kinds, kind) }
 	if does("packages") && r.exists("package.json") && r.mise("which", "aube") == "" {
 		fail(errors.New("the packages update with aube, which writes whichever lockfile the repo has, and the repo's mise doesn't pin it: mise use aube"))
 	}
@@ -103,11 +105,10 @@ func (r repo) update(o updates) {
 	}
 }
 
-// updates are update's choices, its flags: everything when none is given.
+// updates are the update commands' choices, their flags.
 type updates struct {
-	only    string // mise, packages or go: only those pins; "" all of them
-	pick    bool   // ask for each one, with each tool's own picker
-	noMajor bool   // no major moves: packages within their ranges, Go modules within their major
+	pick    bool // ask for each one, with the picker of each tool
+	noMajor bool // no major moves: packages within their ranges, Go modules within their major
 }
 
 // goModules are the folders of every go.mod in the repo, its own first: none in vendor, node_modules, testdata or a

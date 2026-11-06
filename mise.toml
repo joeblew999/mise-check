@@ -1,7 +1,7 @@
 # mise-check's own tasks, only for working on mise-check itself: run them here, at the top. A repo that uses mise-check
 # gets nothing from this file, nor any mise at all: it imports the Go module, go get github.com/joeblew999/mise-check.
-#   mise run lib:test          go vet, and the tests of the checker (the template broken nine ways), the walk, and the binary (none of them walk)
-#   mise run lib:check-mise    misecheck on this very file: the repo uses itself as any repo does
+#   mise run tool:test          go vet, and the tests of the checker (the template broken nine ways), the walk, and the binary (none of them walk)
+#   mise run root:check-mise    misecheck on this very file: the repo uses itself as any repo does
 #   mise run tool:build        the binary, bin/mise-check (.exe on Windows)
 #   mise run tool:install      that build as the mise version local, the template's on this machine (and any repo's)
 #   mise run template:check-mise   misecheck on the template's tasks against the binary's Go, and the walk that runs them
@@ -16,11 +16,11 @@
 # go.mod's toolchain line is the Go pin; this makes mise install honour it.
 idiomatic_version_file_enable_tools = ["go"]
 
-[tasks."lib:test"]
+[tasks."tool:test"]
 description = "go vet, and the tests of the checker (what it reads of a mise file, how it reads a run line, the template broken nine ways), the walk, and the binary (none of them walk)"
 run = 'go vet ./... && go test ./... -count=1'
 
-[tasks."lib:check-mise"]
+[tasks."root:check-mise"]
 description = "misecheck on this repo's own mise.toml, the file this task is in: each task one line, the Go it runs there, its usage passed by name, no POSIX shell syntax, so every task here runs on Windows too"
 env = { MISE_FILE = "mise.toml" }
 run = 'go test . -run "^TestMise$" -count=1 -v'
@@ -66,5 +66,5 @@ env = { MISE_CEILING_PATHS = "{{config_root}}", MISE_IGNORED_CONFIG_PATHS = "{{c
 run = "mise run mise-check:update"
 
 [tasks."root:update"]
-description = "This repo's own pins at their newest releases, by the binary's own update, from source: go.mod's Go and modules (go-mod-upgrade's tool line among them: then TestPin says to move cmd/mise-check's pin of it too). Then lib:test and the walks prove it"
+description = "This repo's own pins at their newest releases, by the binary's own update, from source: go.mod's Go and modules (go-mod-upgrade's tool line among them: then TestPin says to move cmd/mise-check's pin of it too). Then tool:test and the walks prove it"
 run = "go run ./cmd/mise-check update"

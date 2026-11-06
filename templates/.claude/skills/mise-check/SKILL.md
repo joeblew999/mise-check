@@ -11,12 +11,12 @@ repo's [docs/mise-check/README.md](../../../docs/mise-check/README.md): read it 
 Start with `mise run mise-check`: it shows the steps, which are done, and what to run next.
 
 The tasks are numbered in the order a repo meets them, and each runs the command of its name
-(`mise run mise-check:update` runs `mise-check update`): `03-init`, `04-check`, `05-show`, `update`, each
-`mise run mise-check:<it>`. Steps 00 to 02 come before them: the repo's git, `mise install`, its own `setup`. And
+(`mise run mise-check:04-check` runs `mise-check check`): `03-init`, `04-check`, `05-show`, each `mise run mise-check:<it>`. Steps 00 to 02 come before them: the repo's git, `mise install`, its own `setup`. And
 `mise run mise-check:verify` (what GitHub runs), `mise run mise-check:template` (the template's little app, in a repo
 with no Go program yet), `mise run mise-check:show-help`.
 
-To upgrade anything the repo pins, run `mise run mise-check:update`, then `mise run mise-check:verify`. It moves
+To upgrade anything the repo pins, run `mise run mise-check:update` (or one kind only: `mise-check:mise-update`,
+`mise-check:packages-update`, `mise-check:go-update`), then `mise run mise-check:verify`. It moves
 every pin in one go: mise's tools in the repo's mise files, its packages (aube), and in every go.mod its Go (the
 toolchain line) and modules, majors too, their import paths rewritten.
 

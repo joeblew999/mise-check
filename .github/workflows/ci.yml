@@ -57,5 +57,5 @@ jobs:
           mise --version
           mise install
 
-      - name: Everything, as on any machine (mise run root:verify)
-        run: mise run root:verify
+      - name: Everything, as on any machine (mise run root:ci)
+        run: mise run root:ci

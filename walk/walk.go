@@ -203,6 +203,16 @@ func (r Repo) SetUp() {
 }
 
 // Heading starts a part of the walk's output.
+// NeedLocal fails the walk, saying what to run, unless this checkout's build of the tool ("github:owner/name") is
+// installed as the mise version local, which the walk's mise exec tool@local runs: mise run tool:install makes it, and
+// the walk's own task runs it first, but go test run by hand doesn't.
+func (r Repo) NeedLocal(tool string) {
+	r.T.Helper()
+	if _, err := r.Run(nil, "mise", "where", tool+"@local"); err != nil {
+		r.T.Fatalf("%s@local isn't installed: this checkout's build, which the walk runs, is made by mise run tool:install (the walk's own task runs it first)", tool)
+	}
+}
+
 func (r Repo) Heading(format string, a ...any) { fmt.Printf("\n=== %s\n", fmt.Sprintf(format, a...)) }
 
 // Pass says what the walk has seen work.

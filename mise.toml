@@ -2,7 +2,8 @@
 # gets nothing from this file: it gets mise-check's binary and its tasks from mise-check init (templates/), and its Go
 # packages, misecheck and walk, from the module. Each task is named for what it acts on (noun:verb):
 #   root: this repo itself
-#     mise run root:verify             everything GitHub's CI runs, here the same: the checks at once, then the walks in turn
+#     mise run root:ci                 what GitHub's CI runs, here the same: root:verify, then new-tool:e2e
+#     mise run root:verify             the checks at once, then the walks in turn
 #     mise run root:check-mise         misecheck on this very file: one line each, its Go there, usage by name, no shell syntax
 #     mise run root:update             this repo's own pins at their newest, by the binary's own update, from source
 #     mise run root:show-users         which of joeblew999's repos use mise-check, at what version (after every release)
@@ -33,8 +34,13 @@ usage = { version = "7.2.0", workflow = "publish-cli.yml" }    # --help and tab-
 goreleaser = "2.20.0"   # the release's binaries (.goreleaser.yaml)
 "go:github.com/oligot/go-mod-upgrade" = "0.13.0"   # the Go module upgrader update-go runs: the pin of cmd/mise-check's goModUpgrade (TestPin), here so update-mise moves it and no importer's go.mod carries it
 
+[tasks."root:ci"]
+description = "What GitHub's CI runs (ci.yml runs exactly this), here the same: root:verify, then new-tool:e2e, a new mise tool repo made by new-tool, its own root:verify run. new-tool:e2e isn't in root:verify, which it runs in the repo it makes: there, it would make one again"
+depends = ["root:verify"]
+run = "mise run new-tool:e2e"
+
 [tasks."root:verify"]
-description = "Everything GitHub's CI runs on this repo (ci.yml runs exactly this), here the same: tool:test, root:check-mise and template:check-mise at once, then the walks one after the other (template:e2e, template:e2e-update, new-repo:e2e), as they share the machine's one aube store: two installing at once read each other's half-written packages"
+description = "The checks and the walks, all but new-tool:e2e (root:ci, what GitHub's CI runs, adds it): tool:test, root:check-mise and template:check-mise at once, then the walks one after the other (template:e2e, template:e2e-update, new-repo:e2e), as they share the machine's one aube store: two installing at once read each other's half-written packages"
 depends = ["tool:test", "root:check-mise", "template:check-mise"]
 run = "mise run template:e2e-update && mise run new-repo:e2e"
 
@@ -102,7 +108,7 @@ depends = ["tool:install"]
 run = 'go test . -run "^TestUpdateNewRepo$" -count=1 -v -timeout 20m'
 
 [tasks."new-tool:e2e"]
-description = "TestWalkNewTool: a new mise tool repo, made by mise-check new-tool in an empty folder with its own git (at this checkout's build, copying this checkout, or the release --version names, copying it from Go's module proxy), then its own root:verify must pass: its misecheck, tool tests and walks, on its renamed binary. Gone after it. Not in root:verify, since a tool repo new-tool makes has it too and would make one again: new-repo.yml runs it after every release, on each OS; run it before pushing a change to new-tool. Its repo is joeblew999/mise-new-tool, empty on GitHub, so mise can list its releases. After tool:install"
+description = "TestWalkNewTool: a new mise tool repo, made by mise-check new-tool in an empty folder with its own git (at this checkout's build, copying this checkout, or the release --version names, copying it from Go's module proxy), then its own root:verify must pass: its misecheck, tool tests and walks, on its renamed binary. Gone after it. Not in root:verify, which it runs in the repo it makes, where it would make one again: root:ci runs it after root:verify, and new-repo.yml at every release, on each OS. Its repo is joeblew999/mise-new-tool, empty on GitHub, so mise can list its releases. After tool:install"
 usage = 'flag "--version <version>" help="make it at this release of mise-check from GitHub, as mise exec does, instead of the build of this checkout"'
 depends = ["tool:install"]
 run = 'go test . -run "^TestWalkNewTool$" -count=1 -v -timeout 30m{% if usage.version %} -args -version "{{usage.version}}"{% endif %}'

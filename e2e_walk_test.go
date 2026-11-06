@@ -86,6 +86,9 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	if version != "" {
 		at = strings.TrimPrefix(version, "v")
 	}
+	if at == "local" {
+		r.NeedLocal("github:joeblew999/mise-check")
+	}
 	n := r.New("mise-check-new")
 	n.Must("mise", "exec", "github:joeblew999/mise-check@"+at, "--", "mise-check", "init")
 	n.MustTask("mise-check:template")
@@ -104,6 +107,8 @@ func TestWalkNewTool(t *testing.T) {
 	at, from := "local", []string{"--from", top.Dir}
 	if *walk.Version != "" {
 		at, from = strings.TrimPrefix(*walk.Version, "v"), nil
+	} else {
+		top.NeedLocal("github:joeblew999/mise-check")
 	}
 	n.Must("mise", append(append([]string{"exec", "github:joeblew999/mise-check@" + at, "--", "mise-check", "new-tool"}, from...), "github.com/joeblew999/mise-new-tool")...)
 	n.Pass("%s: an empty folder, its own git, mise-check new-tool at %s", n.Name, at)

@@ -15,14 +15,18 @@ import (
 	"strings"
 )
 
-// selfRepo is mise-check's own module: what new-tool copies, at this binary's release.
+// selfRepo is this tool's own module: what new-tool copies, at this binary's release.
 const selfRepo = "github.com/joeblew999/mise-check"
+
+// packagesModule is the module of the packages a new tool repo imports, misecheck and walk: mise-check's, in mise-check
+// and in every repo new-tool makes (this line is kept as it is when it's renamed).
+const packagesModule = "github.com/joeblew999/mise-check"
 
 // dropped are what a new tool repo imports from mise-check instead of copying: the two packages and their tests.
 var dropped = []string{"misecheck.go", "misecheck_test.go", "walk/"}
 
 // kept are the imports of mise-check that stay mise-check's in a new tool repo: the packages it imports.
-var kept = []string{`misecheck "` + selfRepo + `"`, `"` + selfRepo + `/walk"`}
+var kept = []string{`misecheck "github.com/joeblew999/mise-check"`, `"github.com/joeblew999/mise-check/walk"`, `packagesModule = "github.com/joeblew999/mise-check"`}
 
 // newTool makes a new mise tool repo in the folder it runs in: mise-check at this binary's release (from Go's module
 // proxy, as go get has it), or the checkout from names, copied; mise-check renamed to the module's name in every
@@ -36,6 +40,15 @@ func (r repo) newTool(module, from string) {
 	owner, name := m[1], m[2]
 	if es, _ := os.ReadDir(r.dir); len(es) > 1 || len(es) == 1 && es[0].Name() != ".git" {
 		fail(fmt.Errorf("new-tool makes the repo in an empty folder (its own git may be there already), and %s isn't one", r.dir))
+	}
+	// Its GitHub repo first: mise gets the tool's releases there, and runs even this machine's build (local) only once
+	// it can list them.
+	switch _, status := (github{githubToken()}).get("repos/"+owner+"/"+name, ""); status {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		fail(fmt.Errorf("GitHub has no %s/%s: mise gets the tool's releases there, so make it first (empty, no files): gh repo create %s/%s --public", owner, name, owner, name))
+	default:
+		fail(fmt.Errorf("GitHub didn't say whether %s/%s is there (HTTP %d): a token that can read it is GITHUB_TOKEN, GH_TOKEN or gh auth login", owner, name, status))
 	}
 	files := map[string][]byte{}
 	at := version
@@ -61,6 +74,9 @@ func (r repo) newTool(module, from string) {
 		for i, k := range kept {
 			b = bytes.ReplaceAll(b, []byte(fmt.Sprintf("\x00%d\x00", i)), []byte(k))
 		}
+		if p == "README.md" {
+			b = []byte(readmeStub(module, name, cmp.Or(at, "a checkout")))
+		}
 		to := filepath.Join(r.dir, filepath.FromSlash(rename.Replace(p)))
 		must(os.MkdirAll(filepath.Dir(to), 0o755))
 		must(os.WriteFile(to, b, 0o644))
@@ -72,10 +88,41 @@ func (r repo) newTool(module, from string) {
 			trustConfig(r.dir, p)
 		}
 	}
-	// The packages, at this release (both pins at one release), or the newest, for a checkout.
-	r.runOwnMise(r.dir, "exec", "--", "go", "get", selfRepo+"@"+cmp.Or(at, "latest"))
+	// The packages: at this release when this is mise-check (both pins at one release); the newest for a checkout, or
+	// for a tool new-tool made, whose releases are its own.
+	pkgs := "latest"
+	if selfRepo == packagesModule && at != "" {
+		pkgs = at
+	}
+	r.runOwnMise(r.dir, "exec", "--", "go", "get", packagesModule+"@"+pkgs)
+	if from != "" && selfRepo == packagesModule { // a checkout of mise-check: its packages too, as they are there
+		abs, err := filepath.Abs(from)
+		must(err)
+		r.runOwnMise(r.dir, "exec", "--", "go", "mod", "edit", "-replace", packagesModule+"="+abs)
+	}
 	r.runOwnMise(r.dir, "exec", "--", "go", "mod", "tidy")
-	fmt.Printf("✓ next: mise install, then mise run root:verify (what its CI runs); the tool's commands are in cmd/%s\n", name)
+	fmt.Printf("✓ next: mise install, then mise run root:ci (what its CI runs); README.md says what's next after that\n")
+}
+
+// readmeStub is a new tool repo's README: what it is, where it came from, and what to do next.
+func readmeStub(module, name, from string) string {
+	return "# " + name + `
+
+A mise tool repo, made by ` + "`mise-check new-tool " + module + "`" + ` from mise-check ` + from + `: the ` + "`" + name + "`" + ` binary
+(` + "`cmd/" + name + "/`" + `), its template (` + "`templates/`" + `), its walks, its release and its CI, as mise-check's are.
+
+## Next
+
+1. ` + "`mise install`, then `mise run root:ci`" + `: what its CI runs, here the same. It passes as it comes.
+2. Its commands are mise-check's, renamed: keep those the tool needs. To remove one, delete its file,
+   ` + "`cmd/" + name + "/<command>.go`" + `, and run ` + "`mise run root:ci`" + `: misecheck names its task, its skill row and its docs row
+   still left.
+3. Write the tool's own: a file per command in ` + "`cmd/" + name + "/`" + `, its row in ` + "`var commands`" + ` in ` + "`main.go`" + `, its task in
+   ` + "`templates/.mise/tasks/" + name + ".toml`" + `, and its rows in the template's skill and docs. misecheck names each one missing.
+4. Replace this README with the tool's own: the problem it solves, and what it does.
+
+` + "`mise tasks`" + ` lists every task here. CLAUDE.md loads this README.
+`
 }
 
 // droppedFile reports whether the file p is one new-tool drops.

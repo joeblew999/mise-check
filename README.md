@@ -55,7 +55,8 @@ that's new or has code of its own:
 4. **Then:**
 
    ```sh
-   mise install
+   mise install       # node, aube, Go (from go.mod)
+   mise run setup     # the packages (aube install)
    mise run mise-check
    ```
 

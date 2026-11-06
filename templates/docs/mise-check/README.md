@@ -6,18 +6,20 @@ meets them. Start with `mise run mise-check`: what's done, and what to run next.
 
 ## A new repo
 
-An empty folder, its own git, then mise-check's files and the template's little app:
+An empty folder, its own git, then mise-check's files and the template's little app, exactly as the walk proves it on
+macOS, Linux and Windows (mise run new-repo:e2e):
 
 ```sh
 git init
-go mod init <module>
-mise exec github:joeblew999/mise-check@latest -- mise-check init
-mise install
-mise run mise-check:template
-mise run mise-check
+mise exec github:joeblew999/mise-check@latest -- mise-check init   # mise-check's files, pinned at that release
+mise run mise-check:template                                       # the app, its go.mod, mise.toml, package.json
+mise install                                                       # node, aube, Go (from go.mod)
+mise run setup                                                     # the packages (aube install)
+mise run mise-check                                                # what's done, and what to run next
 ```
 
-A repo with Go of its own already skips `go mod init` and `mise-check:template` (it never writes over a file).
+No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
+code of its own skips `mise-check:template`, which never writes over a file anyway.
 
 ## The steps
 

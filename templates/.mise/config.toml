@@ -3,5 +3,10 @@
 # repo's (mise run mise-check:update moves it). A .mise/config.local.toml beside it, never committed, overrides it on
 # one machine: mise-check's own checkout pins its build there (local).
 
+[settings]
+# The owner's tools, at their newest release the moment it's out, as latest and for mise-check:update: mise holds back a
+# release younger than a day (minimum_release_age) for every other tool. mise-check init adds this to a repo's own file.
+minimum_release_age_excludes = ["github:joeblew999/mise-check", "github:joeblew999/mise-intl", "github:joeblew999/mise-cloudflare"]
+
 [tools]
 "github:joeblew999/mise-check" = "latest"

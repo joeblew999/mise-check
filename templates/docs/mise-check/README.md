@@ -13,16 +13,19 @@ mise-check's own walk proves it on macOS, Linux and Windows:
 
 ```sh
 git init
-mise exec github:joeblew999/mise-check@latest -- mise-check init   # mise-check's files, pinned at that release
+mise exec "github:joeblew999/mise-check[minimum_release_age=0s]@latest" -- mise-check init   # mise-check's files, pinned at that release
 mise run mise-check:template                                       # the app, its go.mod, mise.toml, package.json
 mise install                                                       # node, aube, Go (from go.mod)
 mise run setup                                                     # the packages (aube install)
 mise run mise-check                                                # what's done, and what to run next
 ```
 
-`init` runs the newest release, or the one you name instead of `latest` (they're all on
-[its releases](https://github.com/joeblew999/mise-check/releases)); mise takes a new release as `latest` once it's a
-day old. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
+mise holds back a release younger than a day as `latest` (`minimum_release_age`), so `init` asks for none of that,
+for itself alone (`[minimum_release_age=0s]`, writing nothing anywhere else): it runs mise-check's newest release, or
+the one you name instead of `latest` (they're all on [its releases](https://github.com/joeblew999/mise-check/releases)).
+From then on the repo's own `.mise/config.toml` takes the owner's tools (mise-check, mise-intl, mise-cloudflare) at
+their newest release as `latest`, on every machine and in CI (`minimum_release_age_excludes`), and `mise-check:check`
+says when it doesn't. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
 gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this page and its `.gitignore`.
 
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
@@ -36,13 +39,12 @@ binary, its template, its walks, its release and its CI. In an empty folder with
 
 ```sh
 gh repo create <owner>/<name> --public    # its GitHub repo, empty: mise gets the tool's releases there
-mise exec github:joeblew999/mise-check@latest -- mise-check new-tool github.com/<owner>/<name>
+mise exec "github:joeblew999/mise-check[minimum_release_age=0s]@latest" -- mise-check new-tool github.com/<owner>/<name>
 mise install
 mise run root:ci
 ```
 
-`@latest` is the newest release a day old or more (mise's minimum release age); for one out today, name it,
-`@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
+It runs mise-check's newest release, as `init` does in [A new repo](#a-new-repo). Without its GitHub repo, `new-tool` stops and says to make it.
 
 It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
 `mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which

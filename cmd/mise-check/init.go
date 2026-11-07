@@ -45,8 +45,14 @@ func (r repo) initRepo() {
 		}
 		to := filepath.Join(r.dir, filepath.FromSlash(p))
 		if b, err := os.ReadFile(to); err == nil && theirs[p] {
-			if p == ".mise/config.toml" && (addPin(to, b) || movePin(to, b)) {
-				return nil
+			if p == ".mise/config.toml" {
+				added := addPin(to, b)
+				b, _ = os.ReadFile(to)
+				moved := movePin(to, b)
+				b, _ = os.ReadFile(to)
+				if excluded := addExcludes(to, b); added || moved || excluded {
+					return nil
+				}
 			}
 			fmt.Printf("✓ %s is the repo's own: left as it is\n", p)
 			return nil
@@ -80,6 +86,60 @@ func addPin(path string, b []byte) bool {
 	}
 	must(os.WriteFile(path, []byte(s), 0o644))
 	fmt.Printf("wrote %s: mise-check's pin added, %s\n", path, line)
+	return true
+}
+
+// excludes are the owner's tools, which mise takes at their newest release the moment it's out (as latest, and for
+// mise-check:update): minimum_release_age_excludes in .mise/config.toml, as the template's has it. mise holds back a
+// release younger than a day for every other tool, and matches no owner's tools by a pattern, so each is named.
+var excludes = []string{self, "github:joeblew999/mise-intl", "github:joeblew999/mise-cloudflare"}
+
+// excludesLine is minimum_release_age_excludes in a mise file, its list in the first group.
+var excludesLine = regexp.MustCompile(`(?m)^minimum_release_age_excludes\s*=\s*\[([^\]]*)\]`)
+
+// excludesMissing are the owner's tools the mise file's text b doesn't exclude from minimum_release_age.
+func excludesMissing(b []byte) []string {
+	have := ""
+	if m := excludesLine.FindSubmatch(b); m != nil {
+		have = string(m[1])
+	}
+	var missing []string
+	for _, e := range excludes {
+		if !strings.Contains(have, `"`+e+`"`) {
+			missing = append(missing, e)
+		}
+	}
+	return missing
+}
+
+// addExcludes adds the owner's tools to minimum_release_age_excludes in the repo's own .mise/config.toml (b), the
+// ones it doesn't have: in its list, or a line of its own under its [settings], or a [settings] of its own before
+// [tools]. The rest of the file stays as it is.
+func addExcludes(path string, b []byte) bool {
+	missing := excludesMissing(b)
+	if len(missing) == 0 {
+		return false
+	}
+	quoted := `"` + strings.Join(missing, `", "`) + `"`
+	s := string(b)
+	switch m := excludesLine.FindStringSubmatchIndex(s); {
+	case m != nil:
+		have := strings.TrimRight(strings.TrimSpace(s[m[2]:m[3]]), ",")
+		if have != "" {
+			quoted = have + ", " + quoted
+		}
+		s = s[:m[2]] + quoted + s[m[3]:]
+	case strings.Contains(s, "[settings]\n"):
+		i := strings.Index(s, "[settings]\n") + len("[settings]\n")
+		s = s[:i] + "minimum_release_age_excludes = [" + quoted + "]\n" + s[i:]
+	case strings.Contains(s, "[tools]\n"):
+		i := strings.Index(s, "[tools]\n")
+		s = s[:i] + "[settings]\nminimum_release_age_excludes = [" + quoted + "]\n\n" + s[i:]
+	default:
+		s = strings.TrimRight(s, "\n") + "\n\n[settings]\nminimum_release_age_excludes = [" + quoted + "]\n"
+	}
+	must(os.WriteFile(path, []byte(s), 0o644))
+	fmt.Printf("wrote %s: the owner's tools at their newest release, as latest (minimum_release_age_excludes): %s\n", path, strings.Join(missing, ", "))
 	return true
 }
 

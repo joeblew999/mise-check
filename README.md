@@ -35,8 +35,8 @@ How to use mise-check, from a new repo to every command and its flags, is one pa
 installed:
 
 ```sh
-mise exec github:joeblew999/mise-check@latest -- mise-check init
-mise run mise-check   # what's done, and what to run next
+mise exec "github:joeblew999/mise-check[minimum_release_age=0s]@latest" -- mise-check init   # its newest release, as it's out
+mise run mise-check                                                                     # what's done, and what to run next
 ```
 
 ## Working on mise-check

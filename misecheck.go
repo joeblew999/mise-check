@@ -4,7 +4,7 @@
 //
 // It is half of mise-check, which a repo uses through mise, never through this package alone. At the repo's top:
 //
-//	mise exec github:joeblew999/mise-check@latest -- mise-check init   # its tasks, its pin in .mise/config.toml
+//	mise exec "github:joeblew999/mise-check[minimum_release_age=0s]@latest" -- mise-check init   # its tasks, its pin
 //	mise run mise-check                                                # what's done, and what to run next
 //
 // This package is the strict checks a tool repo adds in its own tests, required in go.mod at the release init pinned.

@@ -166,7 +166,10 @@ parent folder's config, so nothing outside the repo moves:
 1. mise's tools, in the repo's mise files: `mise upgrade --bump --no-global`, after `mise cache clear` of the tools the
    repo takes the minute they're out (the ones its `minimum_release_age_excludes` names, mise-check always among
    them): mise keeps a tool's list of releases an hour, and holds back every other tool's a day. A pin of `latest`
-   stays `latest`.
+   stays `latest`. A tool the repo holds to a range of its own elsewhere stays within it, as Go stays go.mod's:
+   python within `pyproject.toml`'s `requires-python`, node within `.nvmrc` or `package.json`'s `engines.node`,
+   when the range is one minor or one major (`==3.13.*`, `^24`). Its pin moves to the newest release there
+   (`mise latest python@3.13`), back down if it had gone past, and the update says so.
 2. its packages, when it has a `package.json`: `aube update --latest`, which writes whichever lockfile the repo has
 3. in every `go.mod` of the repo (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder):
    - its Go: `go get toolchain@latest`, the toolchain line. The `go` line, the least Go the module needs, stays.

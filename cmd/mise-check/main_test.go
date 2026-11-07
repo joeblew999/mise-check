@@ -117,3 +117,23 @@ func TestOwnFiles(t *testing.T) {
 		t.Errorf("settings.json:\n%s", settings)
 	}
 }
+
+// TestHeld: update keeps a tool within a range the repo declares outside mise, of one minor or one major, and no other
+// range holds it.
+func TestHeld(t *testing.T) {
+	for v, want := range map[string]string{"==3.13.*": "3.13", "== 3.13": "3.13", "~=3.13.1": "3.13", ">=3.13,<3.14": "3.13", ">=3.11": "", ">=3.13,<4": ""} {
+		if got := pythonPrefix(v); got != want {
+			t.Errorf("requires-python %q: %q, want %q", v, got, want)
+		}
+	}
+	for v, want := range map[string]string{"^24": "24", "24.x": "24", "~24.11.0": "24.11", ">=24": "", "": ""} {
+		if got := nodePrefix(v); got != want {
+			t.Errorf("engines.node %q: %q, want %q", v, got, want)
+		}
+	}
+	r := repo{dir: t.TempDir()}
+	must(os.WriteFile(filepath.Join(r.dir, "pyproject.toml"), []byte("[project]\nname = \"x\"\nrequires-python = \"==3.13.*\"\n"), 0o644))
+	if h := r.held(); len(h) != 1 || h[0].tool != "python" || h[0].prefix != "3.13" {
+		t.Errorf("held: %+v", h)
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/joeblew999/mise-check/miseconfig"
@@ -62,7 +63,14 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		for _, name := range r.fromGoMod() { // Go, which go.mod pins: update-go's, as mise can't write go.mod
 			upgrade = append(upgrade, "--exclude", name)
 		}
+		held := r.held()
+		for _, h := range held { // a tool the repo holds to a range of its own elsewhere: kept within it, below
+			upgrade = append(upgrade, "--exclude", h.tool)
+		}
 		r.runOwnMise(r.dir, upgrade...)
+		for _, h := range held {
+			r.holdTo(h)
+		}
 	}
 	if does("packages") && r.exists("package.json") {
 		aube := []string{"exec", "--", "aube", "update"}
@@ -124,6 +132,87 @@ func (r repo) updatePins(o updates, kinds ...string) {
 	}
 	for _, l := range lines {
 		fmt.Println("  " + l)
+	}
+}
+
+// hold is a tool the repo holds to a range of its own outside mise, as Go is held to go.mod: python by pyproject.toml's
+// requires-python, node by .nvmrc or package.json's engines.node. prefix is the versions the range allows ("3.13"),
+// and why says where it says so.
+type hold struct{ tool, prefix, why string }
+
+// held are the tools the repo holds to a range of its own (hold): a range of one minor (==3.13.*, ~=3.13.1,
+// >=3.13,<3.14) or one major (^24, 24.x, an .nvmrc of 24); any other range holds nothing.
+func (r repo) held() []hold {
+	var out []hold
+	if b, err := os.ReadFile(filepath.Join(r.dir, "pyproject.toml")); err == nil {
+		if m := regexp.MustCompile(`(?m)^requires-python\s*=\s*["']([^"']+)["']`).FindSubmatch(b); m != nil {
+			if p := pythonPrefix(string(m[1])); p != "" {
+				out = append(out, hold{"python", p, "pyproject.toml's requires-python " + string(m[1])})
+			}
+		}
+	}
+	if b, err := os.ReadFile(filepath.Join(r.dir, ".nvmrc")); err == nil {
+		if m := regexp.MustCompile(`^v?(\d+(?:\.\d+){0,2})$`).FindStringSubmatch(strings.TrimSpace(string(b))); m != nil {
+			return append(out, hold{"node", m[1], ".nvmrc's " + m[1]})
+		}
+	}
+	var pkg struct{ Engines struct{ Node string } }
+	if b, err := os.ReadFile(filepath.Join(r.dir, "package.json")); err == nil && json.Unmarshal(b, &pkg) == nil {
+		if p := nodePrefix(pkg.Engines.Node); p != "" {
+			out = append(out, hold{"node", p, "package.json's engines.node " + pkg.Engines.Node})
+		}
+	}
+	return out
+}
+
+// pythonPrefix is the versions a requires-python range of one minor allows ("3.13"), "" for any other range.
+func pythonPrefix(v string) string {
+	v = strings.ReplaceAll(v, " ", "")
+	if m := regexp.MustCompile(`^==(\d+\.\d+)(\.\*)?$|^~=(\d+\.\d+)\.\d+$`).FindStringSubmatch(v); m != nil {
+		return m[1] + m[3]
+	}
+	if m := regexp.MustCompile(`^>=(\d+)\.(\d+)(?:\.\d+)?,<(\d+)\.(\d+)$`).FindStringSubmatch(v); m != nil {
+		if minor, next := atoi(m[2]), atoi(m[4]); m[1] == m[3] && next == minor+1 {
+			return m[1] + "." + m[2]
+		}
+	}
+	return ""
+}
+
+// nodePrefix is the versions an engines.node range of one major or minor allows ("24", "24.11"), "" for any other.
+func nodePrefix(v string) string {
+	m := regexp.MustCompile(`^\^?(\d+)(?:\.x){0,2}$|^~(\d+\.\d+)(?:\.\d+|\.x)?$|^(\d+)\.x$`).FindStringSubmatch(strings.TrimSpace(v))
+	if m == nil {
+		return ""
+	}
+	return m[1] + m[2] + m[3]
+}
+
+func atoi(s string) int { n, _ := strconv.Atoi(s); return n }
+
+// holdTo moves the tool's exact pin in the repo's mise files to its newest release within the range the repo holds it
+// to (mise latest tool@prefix), down too when an update went past it, and says so. A pin of a range of mise's own
+// (3.13, latest) is the repo's, and stays.
+func (r repo) holdTo(h hold) {
+	var tools map[string][]struct {
+		Version          string
+		RequestedVersion string `json:"requested_version"`
+		Source           struct{ Path string }
+	}
+	if json.Unmarshal([]byte(r.mise("ls", "--no-global", "--json")), &tools) != nil {
+		return
+	}
+	for _, v := range tools[h.tool] {
+		if v.Source.Path == "" || release("v"+v.RequestedVersion) == nil {
+			continue
+		}
+		want := r.mise("latest", h.tool+"@"+h.prefix)
+		if want == "" || want == v.RequestedVersion {
+			fmt.Fprintf(out, "· %s kept within %s, as %s says\n", h.tool, h.prefix, h.why)
+			continue
+		}
+		r.runOwnMise(r.dir, "use", "--path", v.Source.Path, h.tool+"@"+want)
+		fmt.Fprintf(out, "· %s kept within %s, as %s says: %s → %s\n", h.tool, h.prefix, h.why, v.RequestedVersion, want)
 	}
 }
 

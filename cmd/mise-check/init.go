@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -45,16 +46,9 @@ func (r repo) initRepo() {
 		}
 		to := filepath.Join(r.dir, filepath.FromSlash(p))
 		if b, err := os.ReadFile(to); err == nil && theirs[p] {
-			if p == ".mise/config.toml" {
-				added := addPin(to, b)
-				b, _ = os.ReadFile(to)
-				moved := movePin(to, b)
-				b, _ = os.ReadFile(to)
-				if excluded := addExcludes(to, b); added || moved || excluded {
-					return nil
-				}
+			if !keepOwn(p, to, b) {
+				fmt.Printf("✓ %s is the repo's own, with mise-check's parts as this version writes them\n", p)
 			}
-			fmt.Printf("✓ %s is the repo's own: left as it is\n", p)
 			return nil
 		}
 		b, err := fs.ReadFile(templates.Tool, p)
@@ -89,10 +83,160 @@ func addPin(path string, b []byte) bool {
 	return true
 }
 
+// keepOwn brings mise-check's parts of one of the repo's own files (theirs), at to, its text b, to what this version
+// writes, and leaves the rest of it as it is: in .mise/config.toml its pin (added, or moved forward), mise-check's
+// comment at its top, and the owner's tools in minimum_release_age_excludes; in .gitignore the template's lines it
+// lacks; in .claude/settings.json the hook's SessionStart entry. It says what it wrote, and reports whether it did.
+func keepOwn(p, to string, b []byte) bool {
+	switch p {
+	case ".mise/config.toml":
+		wrote := false
+		for _, keep := range []func(string, []byte) bool{addPin, movePin, keepHeader, addExcludes} {
+			if keep(to, b) {
+				wrote = true
+				b, _ = os.ReadFile(to)
+			}
+		}
+		return wrote
+	case ".gitignore":
+		return addIgnores(to, b)
+	case ".claude/settings.json":
+		return addHook(to, b)
+	}
+	return false
+}
+
+// templateConfig is the template's .mise/config.toml, which says, once, the owner's tools (excludes) and what the file
+// is (its header).
+var templateConfig, _ = fs.ReadFile(templates.Tool, ".mise/config.toml")
+
 // excludes are the owner's tools, which mise takes at their newest release the moment it's out (as latest, and for
-// mise-check:update): minimum_release_age_excludes in .mise/config.toml, as the template's has it. mise holds back a
-// release younger than a day for every other tool, and matches no owner's tools by a pattern, so each is named.
-var excludes = []string{self, "github:joeblew999/mise-intl", "github:joeblew999/mise-cloudflare"}
+// mise-check:update): the template's minimum_release_age_excludes, read from it. mise holds back a release younger than
+// a day for every other tool, and matches no owner's tools by a pattern, so each is named there.
+var excludes = excludesIn(templateConfig)
+
+// excludesIn are the tools a mise file's text b lists in minimum_release_age_excludes.
+func excludesIn(b []byte) []string {
+	m := excludesLine.FindSubmatch(b)
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, q := range regexp.MustCompile(`"([^"]+)"`).FindAllSubmatch(m[1], -1) {
+		out = append(out, string(q[1]))
+	}
+	return out
+}
+
+// configHeader is how mise-check's comment at the top of .mise/config.toml starts: a file whose comment starts so is
+// mise-check's, kept as this version writes it; another tool's (mise-cloudflare's init writes its own) is left alone.
+const configHeader = "# mise-check for this repo"
+
+// header is the comment at the top of a file's text s: its lines from the first that start with #.
+func header(s string) string {
+	end := 0
+	for end < len(s) && strings.HasPrefix(s[end:], "#") {
+		nl := strings.IndexByte(s[end:], '\n')
+		if nl < 0 {
+			return s
+		}
+		end += nl + 1
+	}
+	return s[:end]
+}
+
+// keepHeader writes mise-check's comment at the top of the repo's .mise/config.toml (b) as this version has it, when
+// the file's is mise-check's from an older one: one naming a task there isn't any more, say. The rest stays as it is.
+func keepHeader(path string, b []byte) bool {
+	s, want := string(b), header(string(templateConfig))
+	have := header(s)
+	if have == want || !strings.HasPrefix(have, configHeader) {
+		return false
+	}
+	must(os.WriteFile(path, []byte(want+s[len(have):]), 0o644))
+	fmt.Printf("wrote %s: mise-check's comment at its top, as this version writes it\n", path)
+	return true
+}
+
+// excludesComment is the template's comment on minimum_release_age_excludes, the lines just above it, which a repo's
+// own .mise/config.toml gets with it.
+func excludesComment() string {
+	s := string(templateConfig)
+	m := excludesLine.FindStringIndex(s)
+	if m == nil {
+		return ""
+	}
+	start := m[0]
+	for {
+		prev := strings.LastIndexByte(s[:max(start-1, 0)], '\n') + 1
+		if start == 0 || !strings.HasPrefix(s[prev:start], "#") {
+			return s[start:m[0]]
+		}
+		start = prev
+	}
+}
+
+// ignores are the template's .gitignore lines that a repo's own .gitignore (b) lacks, each with the template's comment
+// just above it.
+func ignoresMissing(b []byte) []string {
+	want, _ := fs.ReadFile(templates.Tool, ".gitignore")
+	have := map[string]bool{}
+	for _, l := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
+		have[strings.TrimSpace(l)] = true
+	}
+	var out []string
+	lines := strings.Split(string(want), "\n")
+	for i, l := range lines {
+		if l = strings.TrimSpace(l); l == "" || strings.HasPrefix(l, "#") || have[l] {
+			continue
+		}
+		if i > 0 && strings.HasPrefix(lines[i-1], "#") {
+			l = lines[i-1] + "\n" + l
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// addIgnores adds the template's .gitignore lines the repo's own lacks, at its end. The rest stays as it is.
+func addIgnores(path string, b []byte) bool {
+	missing := ignoresMissing(b)
+	if len(missing) == 0 {
+		return false
+	}
+	s := strings.TrimRight(string(b), "\n") + "\n" + strings.Join(missing, "\n") + "\n"
+	must(os.WriteFile(path, []byte(s), 0o644))
+	fmt.Printf("wrote %s: mise-check's lines it lacked, %d\n", path, len(missing))
+	return true
+}
+
+// addHook adds the hook's SessionStart entry, as the template's .claude/settings.json has it, to the repo's own (b)
+// when it doesn't run the hook, keeping every other setting and hook. One it can't read as JSON is left as it is, and
+// check goes on saying so.
+func addHook(path string, b []byte) bool {
+	if bytes.Contains(b, []byte(templates.HookFile)) {
+		return false
+	}
+	var own, want map[string]any
+	tb, _ := fs.ReadFile(templates.Tool, ".claude/settings.json")
+	if json.Unmarshal(b, &own) != nil || json.Unmarshal(tb, &want) != nil {
+		fmt.Printf("· %s isn't JSON mise-check can read: add the SessionStart entry of docs/mise-check/README.md to it\n", path)
+		return false
+	}
+	hooks, _ := own["hooks"].(map[string]any)
+	if hooks == nil {
+		hooks = map[string]any{}
+	}
+	ours, _ := want["hooks"].(map[string]any)["SessionStart"].([]any)
+	have, _ := hooks["SessionStart"].([]any)
+	hooks["SessionStart"] = append(have, ours...)
+	own["hooks"] = hooks
+	out, err := json.MarshalIndent(own, "", "  ")
+	must(err)
+	must(os.WriteFile(path, append(out, '\n'), 0o644))
+	fmt.Printf("wrote %s: the hook's SessionStart entry, .claude/hooks/%s\n", path, templates.HookFile)
+	return true
+}
 
 // excludesLine is minimum_release_age_excludes in a mise file, its list in the first group.
 var excludesLine = regexp.MustCompile(`(?m)^minimum_release_age_excludes\s*=\s*\[([^\]]*)\]`)
@@ -131,12 +275,12 @@ func addExcludes(path string, b []byte) bool {
 		s = s[:m[2]] + quoted + s[m[3]:]
 	case strings.Contains(s, "[settings]\n"):
 		i := strings.Index(s, "[settings]\n") + len("[settings]\n")
-		s = s[:i] + "minimum_release_age_excludes = [" + quoted + "]\n" + s[i:]
+		s = s[:i] + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n" + s[i:]
 	case strings.Contains(s, "[tools]\n"):
 		i := strings.Index(s, "[tools]\n")
-		s = s[:i] + "[settings]\nminimum_release_age_excludes = [" + quoted + "]\n\n" + s[i:]
+		s = s[:i] + "[settings]\n" + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n\n" + s[i:]
 	default:
-		s = strings.TrimRight(s, "\n") + "\n\n[settings]\nminimum_release_age_excludes = [" + quoted + "]\n"
+		s = strings.TrimRight(s, "\n") + "\n\n[settings]\n" + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n"
 	}
 	must(os.WriteFile(path, []byte(s), 0o644))
 	fmt.Printf("wrote %s: the owner's tools at their newest release, as latest (minimum_release_age_excludes): %s\n", path, strings.Join(missing, ", "))
@@ -202,8 +346,9 @@ func sayNewest() {
 	}
 }
 
-// stale names the files init wrote that this version would write differently, and a .claude/settings.json of the
-// repo's own that doesn't run the hook.
+// stale names the files init wrote that this version would write differently, and the repo's own files whose
+// mise-check parts init would write again (keepOwn): an older comment at the top of .mise/config.toml, a .gitignore
+// without the template's lines, a .claude/settings.json that doesn't run the hook.
 func (r repo) stale() []string {
 	var out []string
 	fs.WalkDir(templates.Tool, ".", func(p string, d fs.DirEntry, err error) error {
@@ -223,7 +368,15 @@ func (r repo) stale() []string {
 		return nil
 	})
 	if b, err := os.ReadFile(filepath.Join(r.dir, ".claude", "settings.json")); err == nil && !bytes.Contains(b, []byte(templates.HookFile)) {
-		out = append(out, ".claude/settings.json doesn't run .claude/hooks/"+templates.HookFile+": add its SessionStart entry (docs/mise-check/README.md)")
+		out = append(out, ".claude/settings.json doesn't run .claude/hooks/"+templates.HookFile+": run mise run mise-check:init")
+	}
+	if b, err := os.ReadFile(filepath.Join(r.dir, ".gitignore")); err == nil && len(ignoresMissing(b)) > 0 {
+		out = append(out, ".gitignore lacks mise-check's lines ("+strings.Join(ignoresMissing(b), "; ")+"): run mise run mise-check:init")
+	}
+	if b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml")); err == nil {
+		if have := header(string(b)); strings.HasPrefix(have, configHeader) && have != header(string(templateConfig)) {
+			out = append(out, ".mise/config.toml's comment at its top is an older mise-check's: run mise run mise-check:init")
+		}
 	}
 	return out
 }

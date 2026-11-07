@@ -84,15 +84,15 @@ func TestOwnFiles(t *testing.T) {
 	write(".mise/config.toml", "# mise-check for this repo: an older one's comment\n\n[settings]\n# The owner's tools: an older one's comment\nminimum_release_age_excludes = [\"npm:*\"]\n\n[tools]\n\"github:joeblew999/mise-check\" = \"local\"\n")
 	write(".gitignore", "bin/\n")
 	write(".claude/settings.json", `{"model": "opus", "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "own.sh"}]}]}}`)
-	if s := r.status(); s.Next != "mise run mise-check:init" || len(s.Problems) != 4 {
-		t.Fatalf("next %q, want mise run mise-check:init, for 4 problems: %q", s.Next, s.Problems)
+	if s := r.status(); s.Next != "mise run mise-check:init" || len(s.Problems) != 5 {
+		t.Fatalf("next %q, want mise run mise-check:init, for 5 problems: %q", s.Next, s.Problems)
 	}
 	r.initRepo()
 	if s := r.status(); len(s.Problems) > 0 {
 		t.Fatalf("after init: %q", s.Problems)
 	}
 	cfg, ignore, settings := read(".mise/config.toml"), read(".gitignore"), read(".claude/settings.json")
-	for _, want := range []string{header(string(templateConfig)), excludesComment() + `minimum_release_age_excludes = ["npm:*", "github:joeblew999/mise-check"`, `= "local"`} {
+	for _, want := range []string{header(string(templateConfig)), excludesComment() + `minimum_release_age_excludes = ["npm:*", "github:joeblew999/mise-check"`, "\nuse_versions_host = false\n", `= "local"`} {
 		if !strings.Contains(cfg, want) {
 			t.Errorf("config.toml has no %q:\n%s", want, cfg)
 		}

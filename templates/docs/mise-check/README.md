@@ -24,8 +24,9 @@ mise holds back a release younger than a day as `latest` (`minimum_release_age`)
 for itself alone (`[minimum_release_age=0s]`, writing nothing anywhere else): it runs mise-check's newest release, or
 the one you name instead of `latest` (they're all on [its releases](https://github.com/joeblew999/mise-check/releases)).
 From then on the repo's own `.mise/config.toml` takes the owner's tools (mise-check, mise-intl, mise-cloudflare) at
-their newest release as `latest`, on every machine and in CI (`minimum_release_age_excludes`), and `mise-check:check`
-says when it doesn't. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
+their newest release as `latest`, on every machine and in CI (`minimum_release_age_excludes`), from GitHub's own
+list of releases, not mise's versions host, which lists one some time after it's out (`use_versions_host = false`);
+`mise-check:check` says when it doesn't. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
 gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this page and its `.gitignore`.
 
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with

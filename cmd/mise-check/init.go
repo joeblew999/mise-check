@@ -92,7 +92,7 @@ func keepOwn(p, to string, b []byte) bool {
 	switch p {
 	case ".mise/config.toml":
 		wrote := false
-		for _, keep := range []func(string, []byte) bool{addPin, movePin, keepHeader, addExcludes} {
+		for _, keep := range []func(string, []byte) bool{addPin, movePin, keepHeader, addExcludes, addVersionsHost} {
 			if keep(to, b) {
 				wrote = true
 				b, _ = os.ReadFile(to)
@@ -179,6 +179,37 @@ func excludesComment() string {
 		}
 		start = prev
 	}
+}
+
+// versionsHostLine is use_versions_host in a mise file.
+var versionsHostLine = regexp.MustCompile(`(?m)^use_versions_host\s*=`)
+
+// addVersionsHost adds the template's use_versions_host = false, and its comment, under the [settings] of the repo's own
+// .mise/config.toml (b) when it doesn't set use_versions_host at all: latest from GitHub's own list of releases. A
+// value of the repo's own stays.
+func addVersionsHost(path string, b []byte) bool {
+	s := string(b)
+	if versionsHostLine.MatchString(s) || !strings.Contains(s, "[settings]\n") {
+		return false
+	}
+	t := string(templateConfig)
+	m := versionsHostLine.FindStringIndex(t)
+	end := m[0] + strings.IndexByte(t[m[0]:], '\n') + 1
+	start := m[0]
+	for start > 0 {
+		prev := strings.LastIndexByte(t[:start-1], '\n') + 1
+		if !strings.HasPrefix(t[prev:start], "#") {
+			break
+		}
+		start = prev
+	}
+	i := strings.Index(s, "[settings]\n") + len("[settings]\n")
+	if e := excludesLine.FindStringIndex(s); e != nil && e[0] >= i { // after the excludes, as the template has it
+		i = e[1] + 1
+	}
+	must(os.WriteFile(path, []byte(s[:i]+t[start:end]+s[i:]), 0o644))
+	fmt.Printf("wrote %s: use_versions_host = false, so latest is the newest release on GitHub the minute it's out\n", path)
+	return true
 }
 
 // ignores are the template's .gitignore lines that a repo's own .gitignore (b) lacks, each with the template's comment

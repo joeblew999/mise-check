@@ -96,7 +96,7 @@ func newRepo(r walk.Repo, version string) walk.Repo {
 	return n
 }
 
-// TestWalkNewTool is a new mise tool repo, made as the README says: an empty folder with its own git, then mise-check
+// TestWalkNewTool is a new mise tool repo, made as the docs page says: an empty folder with its own git, then mise-check
 // new-tool there, at this checkout's build (copying this checkout, --from) or the release -version names (copying that
 // release from Go's module proxy). Then its own CI, mise run root:verify, must pass: its misecheck on its tasks, skill
 // and docs, its tool tests, and its template and new-repo walks, all on its renamed binary (mise run new-tool:e2e).

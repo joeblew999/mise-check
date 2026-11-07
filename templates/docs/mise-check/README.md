@@ -9,7 +9,7 @@ runs `mise-check <command>`. Start with `mise run mise-check`: what's done, and 
 At the repository's root (GitHub and Claude Code read `.github/` and `.claude/` only there), with mise installed once
 on each machine ([mise's getting started](https://mise.jdx.dev/getting-started.html): `curl https://mise.run | sh`, or
 `brew install mise`). An empty folder, its own git, then mise-check's files and the template's little app, exactly as
-the walk proves it on macOS, Linux and Windows (mise run new-repo:e2e):
+mise-check's own walk proves it on macOS, Linux and Windows:
 
 ```sh
 git init
@@ -28,6 +28,26 @@ gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this pag
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
 code of its own skips `mise-check:template`, which never writes over a file anyway. Commit what `init` and `template`
 wrote.
+
+## A new mise tool repo
+
+mise-check is the template for a new mise tool repo, a tool built the way mise-check and mise-cloudflare are: its
+binary, its template, its walks, its release and its CI. In an empty folder with its own git:
+
+```sh
+gh repo create <owner>/<name> --public    # its GitHub repo, empty: mise gets the tool's releases there
+mise exec github:joeblew999/mise-check@latest -- mise-check new-tool github.com/<owner>/<name>
+mise install
+mise run root:ci
+```
+
+`@latest` is the newest release a day old or more (mise's minimum release age); for one out today, name it,
+`@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
+
+It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
+`mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which
+the new repo imports from mise-check instead, pinned at that release. Its README is a short one, saying what to do next. `root:ci` passes from
+the start. Then you remove what the new tool doesn't need, and misecheck names what's left of each command you remove.
 
 ## The tasks
 
@@ -188,3 +208,17 @@ of that namespace, both ways: it names every task and every flag they take, and 
 is one. A test of the repo's own gets the same with `misecheck.CheckSkills(t, ".")`.
 
 The full rules are the [package documentation](https://pkg.go.dev/github.com/joeblew999/mise-check).
+
+## Moving to 0.4.20 or later
+
+0.4.20 dropped the env a repo's tasks used to configure the packages: each repo's tests say it in Go instead.
+
+| Before 0.4.20 | 0.4.20 and later |
+|---|---|
+| `func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }`, the task's `env` saying what (`MISE_FILE`, `GO_CMD`, `GO_LAYOUT`, `GO_CALLERS`, `GO_BINARIES`, `SKILL_FILE`) | A test for each mise file, its `misecheck.Config` written there: `func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }`, the task running it by name, no `env` |
+| `GoBinaries: "a,b"` | `GoBinaries: []string{"a", "b"}`, and `Skills` a list too |
+| `func TestWalk(t *testing.T) { w.Run(t) }`, the task's `env` saying which repo (`REPO_PATH`, `E2E_STAMPED`) and how far (`E2E_STAGE`) | A test a kind of repo, run by name: `func TestWalkTemplate(t *testing.T) { w.Template(t, "templates") }`, `func TestWalkNewRepo(t *testing.T) { w.NewRepo(t) }`; how far is the test's flag, `-args -stage deploy` |
+| A test the env skipped | `walk.OnlyByName(t)`: it runs only when its task names it, `-run "^TestX$"` |
+
+And misecheck now checks that a task's `go test -run "^TestX$"` names a test there is, so a test renamed and the task
+that runs it can't drift.

@@ -81,7 +81,7 @@ func TestOwnFiles(t *testing.T) {
 	at := func(p string) string { return filepath.Join(r.dir, filepath.FromSlash(p)) }
 	write := func(p, s string) { must(os.WriteFile(at(p), []byte(s), 0o644)) }
 	read := func(p string) string { b, _ := os.ReadFile(at(p)); return string(b) }
-	write(".mise/config.toml", "# mise-check for this repo: an older one's comment\n\n[settings]\nminimum_release_age_excludes = [\"npm:*\"]\n\n[tools]\n\"github:joeblew999/mise-check\" = \"local\"\n")
+	write(".mise/config.toml", "# mise-check for this repo: an older one's comment\n\n[settings]\n# The owner's tools: an older one's comment\nminimum_release_age_excludes = [\"npm:*\"]\n\n[tools]\n\"github:joeblew999/mise-check\" = \"local\"\n")
 	write(".gitignore", "bin/\n")
 	write(".claude/settings.json", `{"model": "opus", "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "own.sh"}]}]}}`)
 	if s := r.status(); s.Next != "mise run mise-check:init" || len(s.Problems) != 4 {

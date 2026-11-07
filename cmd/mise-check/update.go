@@ -50,6 +50,9 @@ func (r repo) updatePins(o updates, kinds ...string) {
 	mods := r.goModules()
 	before := r.pins(mods)
 	if does("mise") {
+		// The owner's tools' cached lists of releases, cleared first: mise keeps a tool's list an hour
+		// (fetch_remote_versions_cache), and mise exec reads whatever it has, so a release the minute it's out is seen.
+		r.runOwnMise(r.dir, append([]string{"cache", "clear"}, excludes...)...)
 		upgrade := []string{"upgrade", "--bump", "--no-global"}
 		for _, name := range r.atLocal() { // a checkout's own build (mise link, mise-check's or any tool's): it stays
 			upgrade = append(upgrade, "--exclude", name)

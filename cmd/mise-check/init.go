@@ -159,6 +159,10 @@ func keepHeader(path string, b []byte) bool {
 	return true
 }
 
+// ownersComment is how mise-check's comment on minimum_release_age_excludes starts, in this version and the ones
+// before: one that starts so is mise-check's, written again as this version has it.
+const ownersComment = "# The owner's tools"
+
 // excludesComment is the template's comment on minimum_release_age_excludes, the lines just above it, which a repo's
 // own .mise/config.toml gets with it.
 func excludesComment() string {
@@ -264,9 +268,21 @@ func addExcludes(path string, b []byte) bool {
 	missing := excludesMissing(b)
 	s := string(b)
 	m := excludesLine.FindStringSubmatchIndex(s)
-	// A line with no comment above it (an older init wrote it so) gets the template's.
-	bare := m != nil && (m[0] == 0 || !strings.HasPrefix(s[strings.LastIndexByte(s[:m[0]-1], '\n')+1:], "#"))
-	if len(missing) == 0 && !bare {
+	// The comment above the line: none (an older init wrote it bare), or an older mise-check's, gets the template's;
+	// the repo's own comment stays.
+	above, comment := 0, excludesComment()
+	if m != nil {
+		above = m[0]
+		for above > 0 {
+			prev := strings.LastIndexByte(s[:above-1], '\n') + 1
+			if !strings.HasPrefix(s[prev:above], "#") {
+				break
+			}
+			above = prev
+		}
+	}
+	ours := m != nil && s[above:m[0]] != comment && (above == m[0] || strings.HasPrefix(s[above:m[0]], ownersComment))
+	if len(missing) == 0 && !ours {
 		return false
 	}
 	quoted := `"` + strings.Join(missing, `", "`) + `"`
@@ -278,11 +294,10 @@ func addExcludes(path string, b []byte) bool {
 		} else if have != "" {
 			quoted = have
 		}
-		comment := ""
-		if bare {
-			comment = excludesComment()
+		if !ours {
+			above, comment = m[0], ""
 		}
-		s = s[:m[0]] + comment + s[m[0]:m[2]] + quoted + s[m[3]:]
+		s = s[:above] + comment + s[m[0]:m[2]] + quoted + s[m[3]:]
 	case strings.Contains(s, "[settings]\n"):
 		i := strings.Index(s, "[settings]\n") + len("[settings]\n")
 		s = s[:i] + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n" + s[i:]

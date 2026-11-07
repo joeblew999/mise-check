@@ -15,6 +15,7 @@ const selfModule = "github.com/joeblew999/mise-check"
 // one release (the binary and the packages are one version, released from main), so a repo pins them alike.
 type selves struct {
 	mise     string   // the binary's version, as mise reads the pin ("" for none, or a checkout's own build)
+	latest   bool     // the pin is latest, not a version: mise upgrade moves what it is, never mise use
 	miseFile string   // the mise file that pins it
 	mods     []string // the folders of the go.mods that require the packages
 	module   string   // their version, "v0.4.20" (the newest, if they differ)
@@ -31,7 +32,7 @@ func (r repo) selves(mods []string) selves {
 	if json.Unmarshal([]byte(r.mise("ls", "--no-global", "--json")), &tools) == nil {
 		for _, v := range tools[self] {
 			if v.Source.Path != "" && v.RequestedVersion != "local" && release("v"+v.Version) != nil {
-				s.mise, s.miseFile = v.Version, v.Source.Path
+				s.mise, s.miseFile, s.latest = v.Version, v.Source.Path, v.RequestedVersion == "latest"
 			}
 		}
 	}
@@ -98,7 +99,11 @@ func (r repo) together(s selves) {
 	if s.apart() == "" {
 		return
 	}
-	if newer(s.module, "v"+s.mise) {
+	switch {
+	case newer(s.module, "v"+s.mise) && s.latest: // latest stays latest: the newest release, installed
+		r.runOwnMise(r.dir, "upgrade", self)
+		return
+	case newer(s.module, "v"+s.mise):
 		r.runOwnMise(r.dir, "use", "--path", s.miseFile, self+"@"+strings.TrimPrefix(s.module, "v"))
 		return
 	}

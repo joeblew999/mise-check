@@ -66,7 +66,9 @@ func (r repo) miseRules() []string {
 	}
 	// Every agent skill of the repo against the tasks it's for (.claude/skills/<namespace>/SKILL.md ↔ <namespace>:…):
 	// it names each of them and each flag they take, and only tasks there are.
-	return append(problems, recorded(func(t testing.TB) { misecheck.CheckSkills(t, r.dir) })...)
+	problems = append(problems, recorded(func(t testing.TB) { misecheck.CheckSkills(t, r.dir) })...)
+	// Its README.md, when it has one, opens with the problem and what the repo does, as every repo's does.
+	return append(problems, recorded(func(t testing.TB) { misecheck.CheckReadme(t, r.dir) })...)
 }
 
 // misecheckOn is what misecheck reports as errors on the mise file, its mise side only.

@@ -96,9 +96,12 @@ The shared machinery is mise-check's packages, imported at the release `.mise/co
 4. **No task wraps mise-check's.** A tool's template has no task that runs `mise-check`: its init calls
    `toolfiles.MiseCheckInit(dir)`, which runs mise-check's own init in the repo, at the release of mise-check the tool
    is built with (its go.mod's), so the tool's users run `mise run mise-check:<command>` themselves.
-5. **misecheck holds it to 1 and 4.** Its test of its root mise file calls `misecheck.CheckToolRepo(t, ".")` beside
+5. **Its README opens with the problem.** Right after its title and badges, a paragraph starting `**The problem.**`
+   (what's hard without it), then one starting `**What <name> does.**` (how it solves it). Every repo's does, a tool's
+   or an app's: `mise-check:check` reports a README.md without both in the 30 lines after its title.
+6. **misecheck holds it to these.** Its test of its root mise file calls `misecheck.CheckToolRepo(t, ".")` beside
    `Check`, which fails on a missing `root:ci` or `root:verify`, a ci.yml that runs anything else or on tags or every
-   branch, and a template task that runs mise-check, each saying what to change.
+   branch, a README without its two openings, and a template task that runs mise-check, each saying what to change.
 
 ## The tasks
 
@@ -106,7 +109,7 @@ The shared machinery is mise-check's packages, imported at the release `.mise/co
 |---|---|---|
 | `mise run mise-check` | first, and whenever you're unsure | what's done for the repo, and what to run next |
 | `mise run mise-check:init` | after upgrading mise-check | writes mise-check's files again: its tasks, the workflow, the skill, the docs, the hook |
-| `mise run mise-check:check` | after any change to a mise file or a skill; when it fails, fix the side it names | the repo's rules: its mise files by misecheck, its skills against their tasks, mise-check's files current, its two pins (the binary in mise, the packages in go.mod) at one release |
+| `mise run mise-check:check` | after any change to a mise file or a skill; when it fails, fix the side it names | the repo's rules: its mise files by misecheck, its skills against their tasks, its README's opening, mise-check's files current, its two pins (the binary in mise, the packages in go.mod) at one release |
 | `mise run mise-check:show` | to see where the repo is | the same as mise run mise-check |
 | `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
 | `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order, then mise-check's two pins at one release |

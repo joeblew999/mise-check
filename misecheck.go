@@ -423,9 +423,9 @@ const (
 // every one new-tool makes, saying of each thing that isn't what to change: its mise.toml has root:ci, exactly what
 // GitHub's CI runs, and root:verify, the checks and the walks; its .github/workflows/ci.yml runs mise run root:ci and
 // nothing else of its own (no other task, no go command), once a change: on a push to main and on a pull request,
-// never on a tag or every branch's push; and no task of its template (templates/.mise/tasks/*.toml) runs mise-check,
-// whose own tasks the tool's init gives a repo (toolfiles.MiseCheckInit). A tool repo's test of its root mise file
-// calls it:
+// never on a tag or every branch's push; its README.md opens with **The problem.** and **What <name> does.**
+// (CheckReadme); and no task of its template (templates/.mise/tasks/*.toml) runs mise-check, whose own tasks the
+// tool's init gives a repo (toolfiles.MiseCheckInit). A tool repo's test of its root mise file calls it:
 //
 //	func TestRootMise(t *testing.T) {
 //		misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"})
@@ -453,6 +453,10 @@ func CheckToolRepo(t testing.TB, dir string) {
 	for _, p := range ciProblems(strings.ReplaceAll(string(ci), "\r\n", "\n")) {
 		t.Error(".github/workflows/ci.yml " + p)
 	}
+	if _, err := os.Stat(filepath.Join(dir, "README.md")); err != nil {
+		t.Errorf("no README.md: a tool repo's opens, after its title, with **The problem.** and **What %s does.**", repoName(dir))
+	}
+	CheckReadme(t, dir)
 	files, _ := filepath.Glob(filepath.Join(dir, "templates", ".mise", "tasks", "*.toml"))
 	for _, f := range files {
 		if filepath.Base(f) == "mise-check.toml" { // mise-check's own tasks, which init writes
@@ -466,6 +470,52 @@ func CheckToolRepo(t testing.TB, dir string) {
 		}
 	}
 	t.Logf("tool repo: %s has root:ci and root:verify, ci.yml runs only mise run root:ci on main's pushes and pull requests, and %d template task files wrap no mise-check command", dir, len(files))
+}
+
+// CheckReadme holds the README.md at dir, when there is one, to how every repo's opens: right after its title (and
+// its badges), a paragraph starting **The problem.**, what's hard without the repo, then one starting
+// **What <name> does.**, how it solves it, both within the 30 lines after the title. Two literal markers, never the
+// prose: each one missing is said with exactly what to add. mise-check check runs it on every repo that uses
+// mise-check, and CheckToolRepo on a tool repo, which must have a README.md.
+func CheckReadme(t testing.TB, dir string) {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, "README.md"))
+	if err != nil {
+		return
+	}
+	for _, p := range readmeProblems(strings.ReplaceAll(string(b), "\r\n", "\n"), repoName(dir)) {
+		t.Error(p)
+	}
+}
+
+// readmeProblems are the markers a README's text s lacks in the 30 lines after its title (the first line that starts
+// "# "; the top, with none), each with what to add; name is the repo's, for the second.
+func readmeProblems(s, name string) []string {
+	lines := strings.Split(s, "\n")
+	start := 0
+	for i, l := range lines {
+		if strings.HasPrefix(l, "# ") {
+			start = i + 1
+			break
+		}
+	}
+	top := strings.Join(lines[start:min(start+30, len(lines))], "\n")
+	var out []string
+	if !strings.Contains(top, "**The problem.**") {
+		out = append(out, "README.md doesn't open with the problem: right after its title and badges, add a paragraph starting **The problem.**, what's hard without this repo")
+	}
+	if !regexp.MustCompile(`\*\*What [^*\n]+ does\.\*\*`).MatchString(top) {
+		out = append(out, "README.md doesn't say what the repo does: after **The problem.**, add a paragraph starting **What "+name+" does.**, how it solves it")
+	}
+	return out
+}
+
+// repoName is the name of the repo at dir: its folder's.
+func repoName(dir string) string {
+	if a, err := filepath.Abs(dir); err == nil {
+		return filepath.Base(a)
+	}
+	return filepath.Base(dir)
 }
 
 // wrapsMiseCheck matches a run line that runs mise-check, the binary or its tasks.

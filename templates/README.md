@@ -1,6 +1,10 @@
 # mise-check-template
 
-A repo with [mise-check](https://github.com/joeblew999/mise-check): its pins and mise tasks kept by it.
+**The problem.** Write here, in a paragraph, what's hard without this repo, for a person or an agent who has never
+seen it.
+
+**What mise-check-template does.** Write here, in a paragraph, how it solves that. Its pins and mise tasks are kept by
+[mise-check](https://github.com/joeblew999/mise-check), whose check holds this README to these two openings.
 
 ```sh
 mise install                 # node, aube, mise-check, the Go go.mod names

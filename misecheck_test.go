@@ -383,4 +383,12 @@ func TestToolRepoCI(t *testing.T) {
 	if !wrapsMiseCheck.MatchString("mise-check update{% if usage.json %} --json{% endif %}") || wrapsMiseCheck.MatchString("mise-cloudflare deploy") {
 		t.Error("wrapsMiseCheck: mise-check update wraps mise-check; mise-cloudflare deploy doesn't")
 	}
+	// The README opens with both markers after its title and badges; each one missing is said.
+	readme := "# tool\n\n[![ci](x)](y)\n\n**The problem.** Hard.\n\n**What tool does.** Easy.\n"
+	if p := readmeProblems(readme, "tool"); len(p) > 0 {
+		t.Errorf("README with both: %q", p)
+	}
+	if p := readmeProblems("# tool\n\nA tool.\n", "tool"); len(p) != 2 || !strings.Contains(p[1], "**What tool does.**") {
+		t.Errorf("README with neither: %q", p)
+	}
 }

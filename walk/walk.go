@@ -4,7 +4,7 @@
 // step a user takes is known to work, through the tasks they run.
 //
 // It is half of mise-check, which a repo uses through mise, never through this package alone: at the repo's top,
-// mise exec github:joeblew999/mise-check@latest -- mise-check init writes its tasks and pins it, then mise run
+// mise exec "github:joeblew999/mise-check[minimum_release_age=0s]@latest" -- mise-check init writes its tasks and pins it, then mise run
 // mise-check says what's done and what to run next. A tool repo's tests import this package (and misecheck, whose
 // Check fails without init's tasks) at the release init pinned: https://github.com/joeblew999/mise-check#use-it-in-your-repo.
 //

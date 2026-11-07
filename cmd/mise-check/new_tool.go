@@ -109,7 +109,7 @@ func (r repo) newTool(module, from string) {
 		trustConfig(r.dir, ".mise/config.toml")
 		fmt.Printf("✓ mise-check's own tasks, through mise: mise run mise-check says what's done and what's next\n")
 	} else {
-		fmt.Printf("· its packages are mise-check's, used through mise: there, mise exec github:joeblew999/mise-check@latest -- mise-check init\n")
+		fmt.Printf("· its packages are mise-check's, used through mise: there, mise exec \"github:joeblew999/mise-check[minimum_release_age=0s]@latest\" -- mise-check init\n")
 	}
 	fmt.Printf("✓ next: mise install, then mise run root:ci (what its CI runs); README.md says what's next after that\n")
 }

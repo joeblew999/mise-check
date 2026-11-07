@@ -171,7 +171,7 @@ on any machine:
   made at that release is walked (`new-repo:e2e --version`), and the version goes on proxy.golang.org, so `go get`
   and pkg.go.dev have it at once; then `root:show-users` lists the repos that could move to it. So the release is always main: the binary and the packages are one version.
 
-This README is the one place for all of it, for people and agents alike: CLAUDE.md only loads it (`@README.md`).
+This README is the one place for working on mise-check, for people and agents alike: CLAUDE.md only loads it (`@README.md`). How to use mise-check is the docs page's, [templates/docs/mise-check/README.md](templates/docs/mise-check/README.md), never this README's: here, only how to start, and the link there.
 
 ## License
 

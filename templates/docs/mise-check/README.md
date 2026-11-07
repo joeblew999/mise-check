@@ -1,8 +1,8 @@
 # mise-check in this repo
 
 This repo pins [mise-check](https://github.com/joeblew999/mise-check) in `.mise/config.toml`, from its GitHub
-releases: `mise install` gets it. Every command is a task of `.mise/tasks/mise-check.toml`, numbered in the order a repo
-meets them. Start with `mise run mise-check`: what's done, and what to run next.
+releases: `mise install` gets it. Every command is a task of `.mise/tasks/mise-check.toml`: `mise run mise-check:<command>`
+runs `mise-check <command>`. Start with `mise run mise-check`: what's done, and what to run next.
 
 ## A new repo
 
@@ -112,6 +112,13 @@ run = 'go test . -run "^TestRootMise$" -count=1 -v'
 | `GoCallers` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
 | `GoBinaries` | Which binaries of `GoCmd` to hold to the strict way (optional; none, all of them): for a repo taking it up one binary at a time |
 | `Skills` | The agent skill of these tasks, a `SKILL.md`, and any page that must cover them too, your docs (optional): each must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
+| `Names` | Other files that name these tasks without covering them all, a hook, a workflow, a config file's comments (optional): every task one names, as `mise run namespace:task` or in full in a namespace of the file, must be one, so none sends a person or an agent to a task that isn't there |
+
+The packages are only the strict checks; the repo uses mise-check itself through mise, as any repo does: `mise-check
+init` at its top, and `go.mod` requiring the packages at the release `.mise/config.toml` pins. `Check` holds a repo to
+that in its own tests: without mise-check's tasks (`.mise/tasks/mise-check.toml`) it fails with the `mise exec
+github:joeblew999/mise-check@<release> -- mise-check init` line to run, and with the binary and the packages at two
+releases it says `mise run mise-check:update` moves both. A `go get` of the packages alone is the mistake it catches.
 
 ## The end-to-end tests: walk
 
@@ -165,7 +172,9 @@ run its Go).
 
 A task's `go test -run "^TestX$"` must name a test there is, in the folder it tests: a test renamed, and the task
 that runs it says so. Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. Each
-of `Skills` names every task and every flag, and every task it names is one.
+of `Skills` names every task and every flag, and every task it names is one; each of `Names` names only tasks there
+are. And a repo whose tests import the packages uses mise-check through mise: its tasks there, its two pins at one
+release.
 
 Skills: `mise run mise-check:check` holds every skill of the repo, `.claude/skills/<namespace>/SKILL.md`, to the tasks
 of that namespace, both ways: it names every task and every flag they take, and every task of the namespace it names

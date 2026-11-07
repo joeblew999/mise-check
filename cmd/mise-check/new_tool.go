@@ -101,6 +101,16 @@ func (r repo) newTool(module, from string) {
 		r.runOwnMise(r.dir, "exec", "--", "go", "mod", "edit", "-replace", packagesModule+"="+abs)
 	}
 	r.runOwnMise(r.dir, "exec", "--", "go", "mod", "tidy")
+	// mise-check itself, through mise, as every repo that imports its packages uses it (their misecheck.Check fails
+	// without it): init's files at the new repo's top, the binary pinned at this release (local, a checkout's build),
+	// beside go.mod's packages. A tool new-tool made has its own template, not mise-check's: it says what to run.
+	if selfRepo == packagesModule {
+		r.initRepo()
+		trustConfig(r.dir, ".mise/config.toml")
+		fmt.Printf("✓ mise-check's own tasks, through mise: mise run mise-check says what's done and what's next\n")
+	} else {
+		fmt.Printf("· its packages are mise-check's, used through mise: there, mise exec github:joeblew999/mise-check@latest -- mise-check init\n")
+	}
 	fmt.Printf("✓ next: mise install, then mise run root:ci (what its CI runs); README.md says what's next after that\n")
 }
 
@@ -121,7 +131,9 @@ A mise tool repo, made by ` + "`mise-check new-tool " + module + "`" + ` from mi
    ` + "`templates/.mise/tasks/" + name + ".toml`" + `, and its rows in the template's skill and docs. misecheck names each one missing.
 4. Replace this README with the tool's own: the problem it solves, and what it does.
 
-` + "`mise tasks`" + ` lists every task here. CLAUDE.md loads this README.
+mise-check is used here as in any repo, through its own tasks, which new-tool wrote with ` + "`mise-check init`" + `:
+` + "`mise run mise-check`" + ` (what's done, what's next), ` + "`mise-check:check`" + `, ` + "`mise-check:update`" + ` (every pin, mise-check's two at
+one release). ` + "`docs/mise-check/README.md`" + ` has all of it. ` + "`mise tasks`" + ` lists every task here. CLAUDE.md loads this README.
 `
 }
 

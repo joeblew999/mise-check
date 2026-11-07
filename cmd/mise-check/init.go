@@ -17,7 +17,7 @@ import (
 )
 
 // theirs are the template's files a repo may have of its own already: init writes them only when it has none.
-// .mise/config.toml is mise-check's pin: written once, then the repo's (mise-check:06-update moves it, and so does a
+// .mise/config.toml is mise-check's pin: written once, then the repo's (mise-check:update moves it, and so does a
 // newer release's init, run by hand: forward only).
 var theirs = map[string]bool{".gitignore": true, ".claude/settings.json": true, ".mise/config.toml": true}
 
@@ -37,7 +37,7 @@ func pinned(b []byte) []byte {
 	return pinLine.ReplaceAll(b, []byte(`"`+self+`" = "`+pin+`"`))
 }
 
-// initRepo is mise-check init (03): the template's tool half written into the repo, each file at its path there.
+// initRepo is mise-check init (mise run mise-check:init): the template's tool half written into the repo, each file at its path there.
 func (r repo) initRepo() {
 	must(fs.WalkDir(templates.Tool, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {

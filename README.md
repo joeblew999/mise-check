@@ -6,6 +6,34 @@
 [![license](https://img.shields.io/github/license/joeblew999/mise-check)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/joeblew999/mise-check.svg)](https://pkg.go.dev/github.com/joeblew999/mise-check)
 
+## Install and use
+
+mise-check is used through mise, by its own tasks, never by hand. At the top of your repo, with
+[mise](https://mise.jdx.dev/getting-started.html) installed:
+
+```sh
+mise exec github:joeblew999/mise-check@latest -- mise-check init   # its tasks, its pin, its workflow, skill and docs
+mise install                                                       # mise-check, at the release init pinned
+mise run mise-check                                                # what's done, and what to run next
+```
+
+Then every command is a task:
+
+| Run | When |
+|---|---|
+| `mise run mise-check` | first, and whenever you're unsure: what's done, and what to run next |
+| `mise run mise-check:check` | after any change to a mise file or a skill: the repo's rules |
+| `mise run mise-check:verify` | before every push: what its GitHub workflow runs |
+| `mise run mise-check:update` | to move every pin to its newest (`--no-major`: no majors) |
+
+Every task and flag, what each update moves and how, is [docs/mise-check/README.md](templates/docs/mise-check/README.md),
+the page `init` writes into your repo as `docs/mise-check/README.md`: read it there.
+
+A tool repo whose tests import mise-check's Go packages (`misecheck`, `walk`, below) runs `init` too, and requires
+the packages at the release `init` pinned: `misecheck.Check` fails in a repo that has the packages without
+mise-check's tasks, or with its two pins apart, and says what to run. Don't pin mise-check by hand, nor move a pin of
+it: `mise-check:update` moves the binary and the packages together.
+
 **The problem.** Every repo pins things in three places, and each moves on its own: its **mise tools** (node, aube,
 goreleaser, … in its mise files), its **Node packages** (`package.json` and its lockfile), and its **Go** (each
 go.mod's toolchain line, and its modules, majors included, whose import paths change with them). Upgrading them is a

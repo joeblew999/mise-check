@@ -3,6 +3,11 @@
 // done. A tool's repo walks its template where it is, and a new repo made from nothing as its README says, so every
 // step a user takes is known to work, through the tasks they run.
 //
+// It is half of mise-check, which a repo uses through mise, never through this package alone: at the repo's top,
+// mise exec github:joeblew999/mise-check@latest -- mise-check init writes its tasks and pins it, then mise run
+// mise-check says what's done and what to run next. A tool repo's tests import this package (and misecheck, whose
+// Check fails without init's tasks) at the release init pinned: https://github.com/joeblew999/mise-check#install-and-use.
+//
 // It is mise-cloudflare's walk with everything of Cloudflare's taken out. The tool's own test says which steps there
 // are, which task each runs and what it checks; walk does the rest:
 //

@@ -105,6 +105,11 @@ func ours(dir string) Config {
 		GoLayout:  "file",
 		GoCallers: dir,
 		Skills:    []string{filepath.Join(dir, "templates", ".claude", "skills", "mise-check", "SKILL.md"), filepath.Join(dir, "templates", "docs", "mise-check", "README.md")},
+		Names: []string{
+			filepath.Join(dir, "templates", ".mise", "config.toml"),
+			filepath.Join(dir, "templates", ".claude", "hooks", "mise-check-session-start.sh"),
+			filepath.Join(dir, "templates", ".github", "workflows", "mise-check.yml"),
+		},
 	}
 }
 
@@ -151,6 +156,12 @@ run = 'mise-check show-version{% if usage.color %} --color{% endif %}`),
 		{"a task the skill names that isn't a task",
 			edit(skillFile, ":show-version` | to say", ":show-versions` | to say"),
 			"show-versions, which isn't a task"},
+		{"a hook copied from another tool, naming its task",
+			edit(filepath.Join("templates", ".claude", "hooks", "mise-check-session-start.sh"), "mise run mise-check:init writes it again", "mise run cloudflare:03-init writes it again"),
+			"names the task cloudflare:03-init, which isn't a task"},
+		{"a config file's comment naming a task by its old name",
+			edit(filepath.Join("templates", ".mise", "config.toml"), ":update moves it", ":06-update moves it"),
+			"06-update, which isn't a task"},
 		{"a task name glued together from pieces in Go",
 			edit("e2e_walk_test.go", `"github.com/joeblew999/mise-check/walk"`, "\"github.com/joeblew999/mise-check/walk\"\n)\n\nvar glued = \"mise-check:\" + \"show\"\n\nvar (_ = glued"),
 			"builds a task name from pieces"},
@@ -319,5 +330,59 @@ func TestRunsTest(t *testing.T) {
 		if caught := slices.ContainsFunc(errs, func(e string) bool { return strings.Contains(e, "runs the test "+test) }); caught == ok {
 			t.Errorf("-run %s: %v", test, errs)
 		}
+	}
+}
+
+// TestThroughMise: a repo whose tests import the packages is told, by Check, to use mise-check through mise (its tasks,
+// and the binary pinned at the packages' release); mise-check's own checkout, and a module that doesn't require it,
+// are left alone.
+func TestThroughMise(t *testing.T) {
+	const tasks = "[\"mise-check\"]\nrun = \"mise-check\"\n"
+	for _, c := range []struct {
+		name, gomod, pin string
+		init             bool
+		want             string // "" is no error
+	}{
+		{"the packages alone, no init", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "", false,
+			"mise exec github:joeblew999/mise-check@0.4.25 -- mise-check init"},
+		{"init's tasks, the binary at the packages' release", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "0.4.25", true, ""},
+		{"init's tasks, the binary behind the packages", "module example.com/tool\n\nrequire (\n\tgithub.com/joeblew999/mise-check v0.4.25\n)\n", "0.4.24", true,
+			"mise run mise-check:update moves both to one release"},
+		{"init's tasks, no pin", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "", true,
+			"doesn't pin it"},
+		{"a checkout of mise-check as its packages, the binary local", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.0.0\n\nreplace github.com/joeblew999/mise-check => ../mise-check\n", "local", true, ""},
+		{"a module that doesn't require it", "module example.com/app\n", "", false, ""},
+		{"mise-check's own checkout", "module github.com/joeblew999/mise-check\n", "", false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			write := func(p, s string) {
+				p = filepath.Join(dir, filepath.FromSlash(p))
+				if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			write(".git/HEAD", "ref: refs/heads/main\n")
+			write("go.mod", c.gomod)
+			if c.init {
+				write(".mise/tasks/mise-check.toml", tasks)
+				cfg := "[tools]\n"
+				if c.pin != "" {
+					cfg += "\"github:joeblew999/mise-check\" = \"" + c.pin + "\"\n"
+				}
+				write(".mise/config.toml", cfg)
+			}
+			r := &recorder{}
+			checkThroughMise(r, dir)
+			switch {
+			case c.want == "" && len(r.errors) > 0:
+				t.Errorf("want no error, got:\n%s", strings.Join(r.errors, "\n"))
+			case c.want != "" && !slices.ContainsFunc(r.errors, func(e string) bool { return strings.Contains(e, c.want) }):
+				t.Errorf("want an error with %q, got:\n%s", c.want, strings.Join(r.errors, "\n"))
+			}
+		})
 	}
 }

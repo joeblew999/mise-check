@@ -34,7 +34,7 @@ const cooldown = "7d"
 // whichever lockfile the repo has) when it has them, and in every go.mod of the repo: its Go (the toolchain line; the go
 // line, the least Go the module needs, stays) and its modules, majors too, with go-mod-upgrade, which rewrites a major's
 // import paths (go mod tidy before, as it skips // indirect lines, and after). mise-check at local, a checkout's build,
-// stays there; moved to a newer release, it says to write init's files again (03-init), which it doesn't do itself.
+// stays there; moved to a newer release, it says to write init's files again (mise-check:init), which it doesn't do itself.
 // It ends with what moved; git diff shows it, and mise run mise-check:verify proves it (a major move can break).
 // A developer who wants a say moves one kind only (update-mise, update-packages, update-go), or takes no majors
 // (--no-major).
@@ -106,7 +106,7 @@ func (r repo) updatePins(o updates, kinds ...string) {
 		return
 	}
 	if b, a := selfPin(before), selfPin(after); a != b {
-		fmt.Printf("mise-check moved from %s to %s: mise run mise-check:init writes its files again (04-check fails until it has)\n", b, a)
+		fmt.Printf("mise-check moved from %s to %s: mise run mise-check:init writes its files again (mise-check:check fails until it has)\n", b, a)
 	}
 	lines, n := moved(before, after)
 	if len(lines) == 0 {

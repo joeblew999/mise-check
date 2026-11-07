@@ -2,6 +2,15 @@
 // every task runs the same on macOS, Linux and Windows. That is all it does: it checks the shape, never what the Go
 // does.
 //
+// It is half of mise-check, which a repo uses through mise, never through this package alone. At the repo's top:
+//
+//	mise exec github:joeblew999/mise-check@latest -- mise-check init   # its tasks, its pin in .mise/config.toml
+//	mise run mise-check                                                # what's done, and what to run next
+//
+// This package is the strict checks a tool repo adds in its own tests, required in go.mod at the release init pinned.
+// Check fails in a repo that has this package without mise-check's tasks, or with the two pins apart, and says what
+// to run: https://github.com/joeblew999/mise-check#install-and-use.
+//
 // A repo calls it from a test of its own, one for each mise file it checks, saying in Go what to check, and a task of
 // its mise file runs that test by name:
 //
@@ -103,6 +112,10 @@ type Config struct {
 	// docs), each held to them both ways: every task and flag of the mise file is named in it, and every task it
 	// names, in full ("namespace:task"), is one (optional).
 	Skills []string
+	// Names are other files that name these tasks without covering them all (a hook, a workflow, a config file's
+	// comments), held to them one way: every task one names, as "mise run namespace:task" or in full in a namespace
+	// of the mise file, is one, so none points a person or an agent at a task that isn't there (optional).
+	Names []string
 }
 
 // Check checks the mise file c names against its Go, both ways, by the rules of the package documentation. A repo
@@ -113,6 +126,7 @@ func Check(t testing.TB, c Config) {
 	if file == "" {
 		t.Fatal("Config.MiseFile is empty: the test says which mise file to check")
 	}
+	checkThroughMise(t, ".")
 	if (cmd == "") != (layout == "") {
 		t.Fatalf("GoCmd %q GoLayout %q: give both, for tasks that run a built binary, or neither", cmd, layout)
 	}
@@ -157,6 +171,9 @@ func Check(t testing.TB, c Config) {
 	checkUsage(t, file, tasks, g)
 	for _, skill := range c.Skills {
 		checkSkill(t, file, tasks, skill)
+	}
+	for _, f := range c.Names {
+		checkNames(t, file, tasks, f)
 	}
 	if callers == "" {
 		t.Logf("Go → mise: no GoCallers, so no Go that runs %s by name is checked", file)
@@ -337,15 +354,147 @@ func checkSkill(t testing.TB, file string, tasks []task, skill string) {
 		}
 	}
 	unknown := 0
-	for ns := range namespaces {
-		for _, m := range regexp.MustCompile(`(?:^|[^A-Za-z0-9:_-])(`+regexp.QuoteMeta(ns)+`:[a-z0-9][a-z0-9-]*)`).FindAllStringSubmatch(text, -1) {
-			if !names[m[1]] {
-				unknown++
-				t.Errorf("skill: %s names the task %s, which isn't a task of %s: did it move?", skill, m[1], file)
-			}
+	for _, name := range named(text, namespaces, false) {
+		if !names[name] {
+			unknown++
+			t.Errorf("skill: %s names the task %s, which isn't a task of %s: did it move?", skill, name, file)
 		}
 	}
 	t.Logf("skill: %d tasks and %d flags of %s, against the skill %s: %d not named in it, %d it names that aren't tasks", len(tasks), len(flags), file, skill, missing, unknown)
+}
+
+// checkNames holds a file that names tasks to them one way (Names): every task it names is one. A file of another
+// tool's namespace named after mise run (a hook copied from another tool, say) is caught too.
+func checkNames(t testing.TB, file string, tasks []task, path string) {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Errorf("names: Names: %s can't be read: %v", path, err)
+		return
+	}
+	names := map[string]bool{}
+	namespaces := map[string]bool{}
+	for _, task := range tasks {
+		names[task.name] = true
+		if ns, _, ok := strings.Cut(task.name, ":"); ok {
+			namespaces[ns] = true
+		}
+	}
+	found, unknown := named(string(b), namespaces, true), 0
+	for _, name := range found {
+		if !names[name] {
+			unknown++
+			t.Errorf("names: %s names the task %s, which isn't a task of %s: name the task there is", path, name, file)
+		}
+	}
+	t.Logf("names: %d tasks named in %s, against %s: %d that aren't tasks", len(found), path, file, unknown)
+}
+
+// named are the tasks text names in full, each once, sorted: "namespace:task" in a namespace of namespaces, and, with
+// runs, any "mise run namespace:task", whatever its namespace.
+func named(text string, namespaces map[string]bool, runs bool) []string {
+	found := map[string]bool{}
+	for ns := range namespaces {
+		for _, m := range regexp.MustCompile(`(?:^|[^A-Za-z0-9:_-])(`+regexp.QuoteMeta(ns)+`:[a-z0-9][a-z0-9-]*)`).FindAllStringSubmatch(text, -1) {
+			found[m[1]] = true
+		}
+	}
+	if runs {
+		for _, m := range miseRun.FindAllStringSubmatch(text, -1) {
+			found[m[1]] = true
+		}
+	}
+	return slices.Sorted(maps.Keys(found))
+}
+
+// miseRun is a task named after mise run, in full: mise run cloudflare:03-init.
+var miseRun = regexp.MustCompile(`mise run ([a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*)`)
+
+// ---- Used through mise ----
+
+// selfTool is mise-check as a repo's mise pins it, and selfModule its Go module, whose packages a tool repo's tests
+// import.
+const (
+	selfTool   = "github:joeblew999/mise-check"
+	selfModule = "github.com/joeblew999/mise-check"
+)
+
+// checkThroughMise holds a repo whose tests import mise-check's packages to using mise-check itself, through mise:
+// the repo has the tasks mise-check init writes (.mise/tasks/mise-check.toml), and .mise/config.toml pins the binary
+// at the release go.mod requires the packages at. The packages are only the strict checks for a tool repo's own tests;
+// mise-check is its tasks, so a repo that only requires the packages is told, by its own tests, how to use it. It
+// looks from dir (the test's folder) up to the module's go.mod, and for the tasks from there up to the repo's top. Left
+// alone: mise-check's own checkout, which runs it from source; a go.mod that doesn't require it; and anything but a
+// test (mise-check check, the binary, is run through its tasks already).
+func checkThroughMise(t testing.TB, dir string) {
+	t.Helper()
+	if !testing.Testing() {
+		return
+	}
+	mod := upTo(dir, "go.mod", false)
+	if mod == "" {
+		return
+	}
+	b, err := os.ReadFile(mod)
+	if err != nil {
+		return
+	}
+	text := strings.ReplaceAll(string(b), "\r\n", "\n")
+	if m := regexp.MustCompile(`(?m)^module\s+(\S+)`).FindStringSubmatch(text); m != nil && m[1] == selfModule {
+		t.Logf("through mise: this is mise-check's own checkout, which runs it from source")
+		return
+	}
+	replaced := regexp.MustCompile(`(?m)^\s*(?:replace\s+)?` + regexp.QuoteMeta(selfModule) + `(?:\s+v\S+)?\s+=>`).MatchString(text)
+	m := regexp.MustCompile(`(?m)^\s*(?:require\s+)?` + regexp.QuoteMeta(selfModule) + `\s+(v\S+)`).FindStringSubmatch(text)
+	if m == nil {
+		return
+	}
+	at := strings.TrimPrefix(m[1], "v")
+	release := at
+	if replaced { // a checkout of mise-check, as its packages: its binary is the same checkout's build, local
+		release = "latest"
+	}
+	tasks := upTo(filepath.Dir(mod), filepath.Join(".mise", "tasks", "mise-check.toml"), true)
+	if tasks == "" {
+		t.Errorf("mise-check isn't used through mise in this repo: go.mod requires its packages (%s), which are only the strict checks for a tool's own tests, and the repo has no mise-check tasks (.mise/tasks/mise-check.toml). At the repo's top, run\n"+
+			"    mise exec %s@%s -- mise-check init\n"+
+			"It writes mise-check's tasks, pins that release in .mise/config.toml (the same as go.mod's), and adds its GitHub workflow, its agent skill and docs/mise-check/README.md. Then mise run mise-check says what's done and what to run next, and mise run mise-check:update moves every pin, these two at one release. https://github.com/joeblew999/mise-check#use-it-in-your-repo",
+			m[1], selfTool, release)
+		return
+	}
+	top := filepath.Dir(filepath.Dir(filepath.Dir(tasks)))
+	cfg, _ := os.ReadFile(filepath.Join(top, ".mise", "config.toml"))
+	p := regexp.MustCompile(regexp.QuoteMeta(`"`+selfTool+`" = "`) + `([^"]*)"`).FindSubmatch(cfg)
+	switch {
+	case p == nil:
+		t.Errorf("mise-check's tasks are in %s, and its .mise/config.toml doesn't pin it (%s): mise run mise-check:init adds the pin, at its release", top, selfTool)
+	case replaced || string(p[1]) == "local" || string(p[1]) == "latest" || string(p[1]) == at:
+		t.Logf("through mise: mise-check's tasks in %s, its binary pinned at %s, its packages at %s", top, p[1], m[1])
+	default:
+		t.Errorf("mise-check's two pins are apart: .mise/config.toml pins the binary at %s, and go.mod requires the packages at %s. mise run mise-check:update moves both to one release (a go get of the packages alone leaves the binary behind)", p[1], m[1])
+	}
+}
+
+// upTo is the file name, a path from a folder, found in dir or a folder above it, or "": with repo, no higher than the
+// repo's top (the folder with .git).
+func upTo(dir, name string, repo bool) string {
+	d, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(d, name)); err == nil {
+			return filepath.Join(d, name)
+		}
+		if _, err := os.Stat(filepath.Join(d, ".git")); repo && err == nil {
+			return ""
+		}
+		up := filepath.Dir(d)
+		if up == d {
+			return ""
+		}
+		d = up
+	}
 }
 
 // checkMiseToGo checks mise to Go: every place of Go a task runs is there, and is Go. A task with nothing in either

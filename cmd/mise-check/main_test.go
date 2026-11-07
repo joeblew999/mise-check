@@ -92,7 +92,7 @@ func TestOwnFiles(t *testing.T) {
 		t.Fatalf("after init: %q", s.Problems)
 	}
 	cfg, ignore, settings := read(".mise/config.toml"), read(".gitignore"), read(".claude/settings.json")
-	for _, want := range []string{header(string(templateConfig)), `"npm:*", "github:joeblew999/mise-check"`, `= "local"`} {
+	for _, want := range []string{header(string(templateConfig)), excludesComment() + `minimum_release_age_excludes = ["npm:*", "github:joeblew999/mise-check"`, `= "local"`} {
 		if !strings.Contains(cfg, want) {
 			t.Errorf("config.toml has no %q:\n%s", want, cfg)
 		}

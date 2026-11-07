@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -261,18 +262,27 @@ func excludesMissing(b []byte) []string {
 // [tools]. The rest of the file stays as it is.
 func addExcludes(path string, b []byte) bool {
 	missing := excludesMissing(b)
-	if len(missing) == 0 {
+	s := string(b)
+	m := excludesLine.FindStringSubmatchIndex(s)
+	// A line with no comment above it (an older init wrote it so) gets the template's.
+	bare := m != nil && (m[0] == 0 || !strings.HasPrefix(s[strings.LastIndexByte(s[:m[0]-1], '\n')+1:], "#"))
+	if len(missing) == 0 && !bare {
 		return false
 	}
 	quoted := `"` + strings.Join(missing, `", "`) + `"`
-	s := string(b)
-	switch m := excludesLine.FindStringSubmatchIndex(s); {
+	switch {
 	case m != nil:
 		have := strings.TrimRight(strings.TrimSpace(s[m[2]:m[3]]), ",")
-		if have != "" {
+		if have != "" && len(missing) > 0 {
 			quoted = have + ", " + quoted
+		} else if have != "" {
+			quoted = have
 		}
-		s = s[:m[2]] + quoted + s[m[3]:]
+		comment := ""
+		if bare {
+			comment = excludesComment()
+		}
+		s = s[:m[0]] + comment + s[m[0]:m[2]] + quoted + s[m[3]:]
 	case strings.Contains(s, "[settings]\n"):
 		i := strings.Index(s, "[settings]\n") + len("[settings]\n")
 		s = s[:i] + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n" + s[i:]
@@ -283,7 +293,7 @@ func addExcludes(path string, b []byte) bool {
 		s = strings.TrimRight(s, "\n") + "\n\n[settings]\n" + excludesComment() + "minimum_release_age_excludes = [" + quoted + "]\n"
 	}
 	must(os.WriteFile(path, []byte(s), 0o644))
-	fmt.Printf("wrote %s: the owner's tools at their newest release, as latest (minimum_release_age_excludes): %s\n", path, strings.Join(missing, ", "))
+	fmt.Printf("wrote %s: the owner's tools at their newest release, as latest (minimum_release_age_excludes), with the template's comment: %s\n", path, cmp.Or(strings.Join(missing, ", "), "none missing"))
 	return true
 }
 

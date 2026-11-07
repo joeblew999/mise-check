@@ -6,3 +6,5 @@
 bin/
 # goreleaser's snapshot (mise run tool:release --dry-run)
 dist/
+# Claude Code's worktrees of this checkout, for its agents
+.claude/worktrees/

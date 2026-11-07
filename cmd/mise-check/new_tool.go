@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/joeblew999/mise-check/toolfiles"
 )
 
 // selfRepo is this tool's own module: what new-tool copies, at this binary's release.
@@ -104,14 +106,16 @@ func (r repo) newTool(module, from string) {
 	r.runOwnMise(r.dir, "exec", "--", "go", "mod", "tidy")
 	// mise-check itself, through mise, as every repo that imports its packages uses it (their misecheck.Check fails
 	// without it): init's files at the new repo's top, the binary pinned at this release (local, a checkout's build),
-	// beside go.mod's packages. A tool new-tool made has its own template, not mise-check's: it says what to run.
+	// beside go.mod's packages. A tool new-tool made has its own template, not mise-check's: it runs mise-check's own
+	// init there (toolfiles.MiseCheckInit, at the release of mise-check it's built with), as any tool's init does.
 	if selfRepo == packagesModule {
 		r.initRepo()
-		trustConfig(r.dir, ".mise/config.toml")
-		fmt.Printf("✓ mise-check's own tasks, through mise: mise run mise-check says what's done and what's next\n")
 	} else {
-		fmt.Printf("· its packages are mise-check's, used through mise: there, mise exec \"github:joeblew999/mise-check[minimum_release_age=0s]@latest\" -- mise-check init\n")
+		must(toolfiles.MiseCheckInit(r.dir))
 	}
+	trustConfig(r.dir, ".mise/config.toml")
+	mc := path.Base(packagesModule) // mise-check, in a tool new-tool made too, where that line stays as it is
+	fmt.Printf("✓ %s's own tasks, through mise: mise run %s says what's done and what's next\n", mc, mc)
 	fmt.Printf("✓ next: mise install, then mise run root:ci (what its CI runs); README.md says what's next after that\n")
 }
 

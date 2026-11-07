@@ -130,7 +130,13 @@ func TestWalkNewTool(t *testing.T) {
 	}
 	n.Must("mise", append(append([]string{"exec", "github:joeblew999/mise-check@" + at, "--", "mise-check", "new-tool"}, from...), "github.com/joeblew999/mise-new-tool")...)
 	n.Pass("%s: an empty folder, its own git, mise-check new-tool at %s", n.Name, at)
-	for _, gone := range []string{"misecheck.go", "walk", "miseconfig", "toolfiles", "release", filepath.Join("cmd", "mise-check")} {
+	gone := []string{"misecheck.go", "walk", "miseconfig", "toolfiles", "release"}
+	// This tool's own command, renamed: in a tool new-tool made, which walks a copy of itself under the same name as
+	// its own (mise-new-tool), it's there again by right.
+	if own := filepath.Join("cmd", "mise-check"); own != filepath.Join("cmd", "mise-new-tool") {
+		gone = append(gone, own)
+	}
+	for _, gone := range gone {
 		if _, err := os.Stat(filepath.Join(n.Dir, gone)); err == nil {
 			t.Fatalf("%s: new-tool left %s", n.Name, gone)
 		}

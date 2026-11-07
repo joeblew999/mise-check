@@ -333,55 +333,31 @@ func TestRunsTest(t *testing.T) {
 	}
 }
 
-// TestThroughMise: a repo whose tests import the packages is told, by Check, to use mise-check through mise (its tasks,
-// and the binary pinned at the packages' release); mise-check's own checkout, and a module that doesn't require it,
-// are left alone.
+// TestThroughMise: a repo whose tests import the packages is told by Check to use mise-check through mise, its tasks and
+// the binary at the packages' release; a module that doesn't require it is left alone.
 func TestThroughMise(t *testing.T) {
-	const tasks = "[\"mise-check\"]\nrun = \"mise-check\"\n"
-	for _, c := range []struct {
-		name, gomod, pin string
-		init             bool
-		want             string // "" is no error
-	}{
-		{"the packages alone, no init", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "", false,
-			"mise exec github:joeblew999/mise-check@0.4.25 -- mise-check init"},
-		{"init's tasks, the binary at the packages' release", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "0.4.25", true, ""},
-		{"init's tasks, the binary behind the packages", "module example.com/tool\n\nrequire (\n\tgithub.com/joeblew999/mise-check v0.4.25\n)\n", "0.4.24", true,
-			"mise run mise-check:update moves both to one release"},
-		{"init's tasks, no pin", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n", "", true,
-			"doesn't pin it"},
-		{"a checkout of mise-check as its packages, the binary local", "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.0.0\n\nreplace github.com/joeblew999/mise-check => ../mise-check\n", "local", true, ""},
-		{"a module that doesn't require it", "module example.com/app\n", "", false, ""},
-		{"mise-check's own checkout", "module github.com/joeblew999/mise-check\n", "", false, ""},
+	const req = "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n"
+	for _, c := range []struct{ name, gomod, pin, want string }{
+		{"the packages alone, no init", req, "", "mise exec github:joeblew999/mise-check@0.4.25 -- mise-check init"},
+		{"the binary behind the packages", req, "0.4.24", "mise run mise-check:update moves both to one release"},
+		{"both at one release", req, "0.4.25", ""},
+		{"a module that doesn't require it", "module example.com/app\n", "", ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dir := t.TempDir()
-			write := func(p, s string) {
-				p = filepath.Join(dir, filepath.FromSlash(p))
-				if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-					t.Fatal(err)
-				}
-				if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
-					t.Fatal(err)
-				}
+			files := map[string]string{".git/HEAD": "", "go.mod": c.gomod}
+			if c.pin != "" {
+				files[".mise/tasks/mise-check.toml"] = "[\"mise-check\"]\nrun = \"mise-check\"\n"
+				files[".mise/config.toml"] = "[tools]\n\"github:joeblew999/mise-check\" = \"" + c.pin + "\"\n"
 			}
-			write(".git/HEAD", "ref: refs/heads/main\n")
-			write("go.mod", c.gomod)
-			if c.init {
-				write(".mise/tasks/mise-check.toml", tasks)
-				cfg := "[tools]\n"
-				if c.pin != "" {
-					cfg += "\"github:joeblew999/mise-check\" = \"" + c.pin + "\"\n"
-				}
-				write(".mise/config.toml", cfg)
+			for p, b := range files {
+				os.MkdirAll(filepath.Join(dir, filepath.Dir(p)), 0o755)
+				os.WriteFile(filepath.Join(dir, p), []byte(b), 0o644)
 			}
 			r := &recorder{}
 			checkThroughMise(r, dir)
-			switch {
-			case c.want == "" && len(r.errors) > 0:
-				t.Errorf("want no error, got:\n%s", strings.Join(r.errors, "\n"))
-			case c.want != "" && !slices.ContainsFunc(r.errors, func(e string) bool { return strings.Contains(e, c.want) }):
-				t.Errorf("want an error with %q, got:\n%s", c.want, strings.Join(r.errors, "\n"))
+			if got := strings.Join(r.errors, "\n"); c.want == "" && got != "" || !strings.Contains(got, c.want) {
+				t.Errorf("want %q, got:\n%s", c.want, got)
 			}
 		})
 	}

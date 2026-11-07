@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/joeblew999/mise-check/templates"
 )
 
 // TestPin: the go-mod-upgrade update-go runs is the one mise-check's root mise.toml pins ("go:<module>" = "<version>"),
@@ -69,59 +71,36 @@ func TestShow(t *testing.T) {
 	}
 }
 
-// TestExcludes: init lets mise take the owner's tools at their newest release, in a repo's own .mise/config.toml, however
-// it has its [settings]; and check, and so show, say to run init while one isn't there.
-func TestExcludes(t *testing.T) {
-	all := `minimum_release_age_excludes = ["github:joeblew999/mise-check", "github:joeblew999/mise-intl", "github:joeblew999/mise-cloudflare"]`
-	for _, c := range []struct{ name, in, want string }{
-		{"no [settings]", "[tools]\nnode = \"26\"\n", "[settings]\n" + all + "\n\n[tools]\nnode = \"26\"\n"},
-		{"a [settings] of its own", "[settings]\nexperimental = true\n\n[tools]\n", "[settings]\n" + all + "\nexperimental = true\n\n[tools]\n"},
-		{"a list of its own, one of them there", "[settings]\nminimum_release_age_excludes = [\"npm:*\", \"github:joeblew999/mise-intl\"]\n",
-			"[settings]\nminimum_release_age_excludes = [\"npm:*\", \"github:joeblew999/mise-intl\", \"github:joeblew999/mise-check\", \"github:joeblew999/mise-cloudflare\"]\n"},
-		{"every one there", "[settings]\n" + all + "\n", "[settings]\n" + all + "\n"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			p := filepath.Join(t.TempDir(), "config.toml")
-			if err := os.WriteFile(p, []byte(c.in), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			wrote := addExcludes(p, []byte(c.in))
-			b, _ := os.ReadFile(p)
-			if string(b) != c.want || wrote != (c.in != c.want) {
-				t.Errorf("wrote %v:\n%s\nwant:\n%s", wrote, b, c.want)
-			}
-		})
-	}
+// TestOwnFiles: init writes mise-check's parts of the repo's own files as this version has them, and nothing else of
+// them: the comment at the top of .mise/config.toml, the owner's tools in its minimum_release_age_excludes beside the
+// repo's own, the .gitignore lines, the hook in a .claude/settings.json with a hook of its own; check says to run init
+// until it has.
+func TestOwnFiles(t *testing.T) {
 	r := repo{dir: t.TempDir()}
 	r.initRepo()
-	cfg := filepath.Join(r.dir, ".mise", "config.toml")
-	b, _ := os.ReadFile(cfg)
-	if err := os.WriteFile(cfg, excludesLine.ReplaceAll(b, nil), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if s := r.status(); s.Next != "mise run mise-check:init" {
-		t.Fatalf("a config.toml without the excludes: next %q, want mise run mise-check:init (problems %q)", s.Next, s.Problems)
+	at := func(p string) string { return filepath.Join(r.dir, filepath.FromSlash(p)) }
+	write := func(p, s string) { must(os.WriteFile(at(p), []byte(s), 0o644)) }
+	read := func(p string) string { b, _ := os.ReadFile(at(p)); return string(b) }
+	write(".mise/config.toml", "# mise-check for this repo: an older one's comment\n\n[settings]\nminimum_release_age_excludes = [\"npm:*\"]\n\n[tools]\n\"github:joeblew999/mise-check\" = \"local\"\n")
+	write(".gitignore", "bin/\n")
+	write(".claude/settings.json", `{"model": "opus", "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "own.sh"}]}]}}`)
+	if s := r.status(); s.Next != "mise run mise-check:init" || len(s.Problems) != 4 {
+		t.Fatalf("next %q, want mise run mise-check:init, for 4 problems: %q", s.Next, s.Problems)
 	}
 	r.initRepo()
-	if s := r.status(); len(excludesMissing(mustRead(t, cfg))) > 0 || slicesHas(s.Problems, "minimum_release_age_excludes") {
-		t.Fatalf("init again didn't add them back: problems %q", s.Problems)
+	if s := r.status(); len(s.Problems) > 0 {
+		t.Fatalf("after init: %q", s.Problems)
 	}
-}
-
-func mustRead(t *testing.T, p string) []byte {
-	t.Helper()
-	b, err := os.ReadFile(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
-}
-
-func slicesHas(ss []string, sub string) bool {
-	for _, s := range ss {
-		if strings.Contains(s, sub) {
-			return true
+	cfg, ignore, settings := read(".mise/config.toml"), read(".gitignore"), read(".claude/settings.json")
+	for _, want := range []string{header(string(templateConfig)), `"npm:*", "github:joeblew999/mise-check"`, `= "local"`} {
+		if !strings.Contains(cfg, want) {
+			t.Errorf("config.toml has no %q:\n%s", want, cfg)
 		}
 	}
-	return false
+	if !strings.HasPrefix(ignore, "bin/\n") || !strings.Contains(ignore, ".mise/config.local.toml") {
+		t.Errorf(".gitignore:\n%s", ignore)
+	}
+	if !strings.Contains(settings, `"opus"`) || !strings.Contains(settings, "own.sh") || !strings.Contains(settings, templates.HookFile) {
+		t.Errorf("settings.json:\n%s", settings)
+	}
 }

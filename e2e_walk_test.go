@@ -27,6 +27,24 @@ var miseCheckWalk = walk.Walk[*walker]{Steps: steps, New: newRepo, Prepare: with
 func TestWalkTemplate(t *testing.T) { miseCheckWalk.Template(t, "templates") }
 func TestWalkNewRepo(t *testing.T)  { miseCheckWalk.NewRepo(t) }
 
+// TestSteps: the walk is the template's tasks file's whole walk: each step a task of it, and every other task named
+// with why the walk doesn't run it, so a task added, renamed or removed, and the walk says so.
+func TestSteps(t *testing.T) {
+	walk.CheckSteps(t, "templates/.mise/tasks/mise-check.toml", steps, map[string]string{
+		"mise-check":                 "the same as show, whose step reads its JSON",
+		"mise-check:verify":          "the check step runs it, after check",
+		"mise-check:template":        "a new repo's New runs it, before the steps",
+		"mise-check:update":          "TestUpdateTemplate and TestUpdateNewRepo walk it, on old pins",
+		"mise-check:update-mise":     "TestUpdateTemplate and TestUpdateNewRepo walk it, on old pins",
+		"mise-check:update-packages": "TestUpdateTemplate and TestUpdateNewRepo walk it, on old pins",
+		"mise-check:update-go":       "TestUpdateTemplate and TestUpdateNewRepo walk it, on old pins",
+		"mise-check:new-tool":        "TestWalkNewTool walks it, in a repo of its own",
+		"mise-check:show-users":      "it reads the owner's repos on GitHub",
+		"mise-check:show-version":    "it only prints the version",
+		"mise-check:show-help":       "it only prints the commands",
+	})
+}
+
 // walker is mise-check's walk of a repo: what each step's Check is given.
 type walker struct{ walk.Repo }
 

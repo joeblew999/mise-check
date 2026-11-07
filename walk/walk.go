@@ -1,6 +1,6 @@
-// Package walk is the end-to-end test of a repo through its own mise file, the way a person there uses it: its
-// numbered tasks run in their order (mise run greet:03-init, greet:04-check, …), each checked by what it should have
-// done. A tool's repo walks its template where it is, and a new repo made from nothing as its README says, so every
+// Package walk is the end-to-end test of a repo through its own mise file, the way a person there uses it: its tasks
+// run by name in the order a person takes them (mise run greet:init, greet:check, …), each checked by what it should
+// have done. The order is the walk's, never the tasks' names: no task is numbered. A tool's repo walks its template where it is, and a new repo made from nothing as its README says, so every
 // step a user takes is known to work, through the tasks they run.
 //
 // It is half of mise-check, which a repo uses through mise, never through this package alone: at the repo's top,
@@ -25,15 +25,17 @@
 //
 //	func TestWalkTemplate(t *testing.T) { greetWalk.Template(t, "templates") }
 //	func TestWalkNewRepo(t *testing.T)   { greetWalk.NewRepo(t) }
-//	func TestSteps(t *testing.T)         { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
+//	func TestSteps(t *testing.T) {
+//		walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps, map[string]string{"greet:help": "it only prints the commands"})
+//	}
 //
 // Which repo is the test's name, and the task that runs it names it (go test . -run "^TestWalkTemplate$"); how far is
 // the test's flag -stage, and the release a new repo is made at its flag -version, both from the task's own usage
 // (-args -stage deploy). A walk runs only when its test is named, so go test ./... never walks (OnlyByName).
 //
-// The tool's test names each task in full ("greet:03-init"), never glued from pieces, so misecheck (GoCallers) checks
-// every name against the tasks file, and Numbered reads that file's numbered tasks, so a test can check its steps are
-// exactly those, in their order.
+// The tool's test names each task in full ("greet:init"), never glued from pieces, so misecheck (GoCallers) checks
+// every name against the tasks file, and CheckSteps holds the steps to that file's tasks: each step a task, and every
+// task a step or in a short list of the ones not walked, each with why.
 package walk
 
 import (
@@ -223,7 +225,7 @@ func (r Repo) Heading(format string, a ...any) { fmt.Printf("\n=== %s\n", fmt.Sp
 // Pass says what the walk has seen work.
 func (r Repo) Pass(format string, a ...any) { fmt.Printf("PASS %s\n", fmt.Sprintf(format, a...)) }
 
-// Step is one numbered task of the repo's mise file: the task, in full (greet:03-init), the first stage of the walk
+// Step is one task of the repo's mise file, in the walk's order: the task, in full (greet:init), the first stage of the walk
 // that runs it, and how the walk runs it and checks it did what it says. A step the walk can't show working says why
 // in Skip, instead of a Check.
 type Step[W any] struct {
@@ -325,37 +327,75 @@ func OnlyByName(t *testing.T) {
 	}
 }
 
-// CheckSteps fails unless the steps are exactly the numbered tasks of the mise file, in their order (Numbered), so the
-// walk is that file's walk: a task added, renamed or moved, and the walk says so.
-func CheckSteps[W any](t *testing.T, file string, steps []Step[W]) {
+// CheckSteps fails unless the walk is the mise file's whole walk: each step is a task of the file, once, and every
+// task of the file is a step or one of notWalked, the tasks the walk doesn't run, each with why ("greet:help": "it
+// only prints the commands"). A task added, renamed or removed, and the walk says so. The steps' order is the test's
+// own, the order a person takes them, as the tool's docs page and what mise run <namespace> says next give it: never
+// the tasks' names.
+func CheckSteps[W any](t *testing.T, file string, steps []Step[W], notWalked map[string]string) {
 	t.Helper()
-	tasks, err := Numbered(file)
+	tasks, err := tasksIn(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ours []string
+	var walked []string
 	for _, s := range steps {
-		ours = append(ours, s.Task)
+		walked = append(walked, s.Task)
 	}
-	if !slices.Equal(ours, tasks) {
-		t.Errorf("the walk's steps %v aren't %s's numbered tasks, in their order: %v", ours, file, tasks)
+	for _, p := range stepsProblems(file, tasks, walked, notWalked) {
+		t.Error(p)
 	}
 }
 
-// numbered is a numbered task's table: ["greet:03-init"] in a file of tasks only, [tasks."greet:03-init"] in a
-// mise.toml.
-var numbered = regexp.MustCompile(`(?m)^\[(?:tasks\.)?"([a-z0-9-]+:[0-9]{2}-[a-z0-9-]+)"\]\r?$`)
+// stepsProblems are what keeps walked (the steps' tasks) and notWalked from being exactly the tasks of file, in
+// tasks, each saying what to change.
+func stepsProblems(file string, tasks, walked []string, notWalked map[string]string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, s := range walked {
+		switch {
+		case !slices.Contains(tasks, s):
+			out = append(out, fmt.Sprintf("the walk's step %s isn't a task of %s: rename the step, or add the task", s, file))
+		case seen[s]:
+			out = append(out, fmt.Sprintf("the walk has %s as a step twice", s))
+		case notWalked[s] != "":
+			out = append(out, fmt.Sprintf("%s is a step and in notWalked: take it out of notWalked", s))
+		}
+		seen[s] = true
+	}
+	for s, why := range notWalked {
+		if !slices.Contains(tasks, s) {
+			out = append(out, fmt.Sprintf("notWalked names %s, which isn't a task of %s: take it out", s, file))
+		} else if strings.TrimSpace(why) == "" {
+			out = append(out, fmt.Sprintf("notWalked names %s without saying why it isn't walked", s))
+		}
+	}
+	for _, s := range tasks {
+		if !seen[s] && notWalked[s] == "" {
+			out = append(out, fmt.Sprintf("%s's task %s is neither a step of the walk nor in notWalked: walk it, in the order a person takes it, or say in notWalked why not", file, s))
+		}
+	}
+	return out
+}
 
-// Numbered is a mise file's numbered tasks (namespace:NN-name), in their order in it, so a test can check its steps are
-// exactly those.
-func Numbered(file string) ([]string, error) {
+// taskHeader is a task's table: ["name"] or [name] in a file of tasks only, [tasks."name"] or [tasks.name] in a
+// mise.toml, which has other tables too.
+var taskHeader = regexp.MustCompile(`^\[(tasks\.)?(?:"([^"]+)"|([A-Za-z0-9_:-]+))\]$`)
+
+// tasksIn is a mise file's tasks, in their order in it: a mise.toml's [tasks.…], or every table of a file of tasks
+// only.
+func tasksIn(file string) ([]string, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
+	s := strings.ReplaceAll(string(b), "\r\n", "\n")
+	config := regexp.MustCompile(`(?m)^\[tasks\.`).MatchString(s)
 	var tasks []string
-	for _, m := range numbered.FindAllStringSubmatch(string(b), -1) {
-		tasks = append(tasks, m[1])
+	for _, l := range strings.Split(s, "\n") {
+		if m := taskHeader.FindStringSubmatch(l); m != nil && (m[1] != "") == config {
+			tasks = append(tasks, m[2]+m[3])
+		}
 	}
 	return tasks, nil
 }

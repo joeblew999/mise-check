@@ -28,7 +28,7 @@
 //
 // How it's used, in mise-cloudflare say: a loop that runs both ways, mise to Go and back, several levels deep. Its
 // root mise.toml runs Go tests (mise run template:e2e-serve runs TestWalkTemplate), which run its template's tasks by name
-// (cloudflare:06-serve), which run its tool's Go (mise-cloudflare serve). A task of each mise file runs Check on it,
+// (cloudflare:serve), which run its tool's Go (mise-cloudflare serve). A task of each mise file runs Check on it,
 // even on the file that holds that task: root:check-mise checks the mise.toml it's in, and template:check-mise checks
 // the template's tasks against the Go they run and against the end-to-end Go that runs them, so every link is checked
 // in both directions.
@@ -57,6 +57,9 @@
 //
 // Every task, however it runs Go:
 //
+//   - its name is namespace:command, never numbered (namespace:03-init): the order a repo meets its tasks is the
+//     walk's (its end-to-end test runs them by name, in a person's order), the docs page's and what mise run
+//     <namespace> says next;
 //   - its run and its usage are each one line, "…" or '…': longer logic belongs in Go, not in the mise file. One it
 //     can't read fails, rather than being skipped;
 //   - it declares the flags and arguments it takes in mise's usage, and its run passes each by name with mise's own
@@ -145,6 +148,11 @@ func Check(t testing.TB, c Config) {
 	}
 	if len(tasks) == 0 {
 		t.Errorf("MiseFile %s has no tasks: did it move?", file)
+	}
+	for _, k := range tasks {
+		if m := numberedTask.FindStringSubmatch(k.name); m != nil {
+			t.Errorf("%s's task %s is numbered: name it %s:%s. The order a repo meets its tasks is in the walk (its end-to-end test runs them by name, in a person's order), the docs page and what mise run %s says next, never in a task's name", file, k.name, m[1], m[2], m[1])
+		}
 	}
 	g := goSide{cmd: cmd, layout: layout}
 	if cmd != "" {
@@ -407,7 +415,7 @@ func named(text string, namespaces map[string]bool, runs bool) []string {
 	return slices.Sorted(maps.Keys(found))
 }
 
-// miseRun is a task named after mise run, in full: mise run cloudflare:03-init.
+// miseRun is a task named after mise run, in full: mise run cloudflare:init.
 var miseRun = regexp.MustCompile(`mise run ([a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*)`)
 
 // ---- Used through mise ----
@@ -517,6 +525,9 @@ func repoName(dir string) string {
 	}
 	return filepath.Base(dir)
 }
+
+// numberedTask is a task named with its place in an order, namespace:NN-command: its namespace and its command.
+var numberedTask = regexp.MustCompile(`^([^:]+):[0-9]{2}-(.+)$`)
 
 // wrapsMiseCheck matches a run line that runs mise-check, the binary or its tasks.
 var wrapsMiseCheck = regexp.MustCompile(`(?:^|[\s;&|(])mise-check(?:\s|$)|mise run mise-check(?:[:\s]|$)`)

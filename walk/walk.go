@@ -6,7 +6,7 @@
 // It is half of mise-check, which a repo uses through mise, never through this package alone: at the repo's top,
 // mise exec github:joeblew999/mise-check@latest -- mise-check init writes its tasks and pins it, then mise run
 // mise-check says what's done and what to run next. A tool repo's tests import this package (and misecheck, whose
-// Check fails without init's tasks) at the release init pinned: https://github.com/joeblew999/mise-check#install-and-use.
+// Check fails without init's tasks) at the release init pinned: https://github.com/joeblew999/mise-check#use-it-in-your-repo.
 //
 // It is mise-cloudflare's walk with everything of Cloudflare's taken out. The tool's own test says which steps there
 // are, which task each runs and what it checks; walk does the rest:

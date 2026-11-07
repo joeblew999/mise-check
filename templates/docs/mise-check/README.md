@@ -173,8 +173,7 @@ run its Go).
 A task's `go test -run "^TestX$"` must name a test there is, in the folder it tests: a test renamed, and the task
 that runs it says so. Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. Each
 of `Skills` names every task and every flag, and every task it names is one; each of `Names` names only tasks there
-are. And a repo whose tests import the packages uses mise-check through mise: its tasks there, its two pins at one
-release.
+are.
 
 Skills: `mise run mise-check:check` holds every skill of the repo, `.claude/skills/<namespace>/SKILL.md`, to the tasks
 of that namespace, both ways: it names every task and every flag they take, and every task of the namespace it names

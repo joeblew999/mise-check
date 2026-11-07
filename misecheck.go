@@ -9,7 +9,7 @@
 //
 // This package is the strict checks a tool repo adds in its own tests, required in go.mod at the release init pinned.
 // Check fails in a repo that has this package without mise-check's tasks, or with the two pins apart, and says what
-// to run: https://github.com/joeblew999/mise-check#install-and-use.
+// to run: https://github.com/joeblew999/mise-check#use-it-in-your-repo.
 //
 // A repo calls it from a test of its own, one for each mise file it checks, saying in Go what to check, and a task of
 // its mise file runs that test by name:

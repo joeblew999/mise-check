@@ -1,13 +1,15 @@
 # mise-check in this repo
 
 This repo pins [mise-check](https://github.com/joeblew999/mise-check) in `.mise/config.toml`, from its GitHub
-releases: `mise install` gets it. Every command is a task of `.mise/tasks/mise-check.toml`, numbered in the order a repo
-meets them. Start with `mise run mise-check`: what's done, and what to run next.
+releases: `mise install` gets it. Every command is a task of `.mise/tasks/mise-check.toml`: `mise run mise-check:<command>`
+runs `mise-check <command>`. Start with `mise run mise-check`: what's done, and what to run next.
 
 ## A new repo
 
-An empty folder, its own git, then mise-check's files and the template's little app, exactly as the walk proves it on
-macOS, Linux and Windows (mise run new-repo:e2e):
+At the repository's root (GitHub and Claude Code read `.github/` and `.claude/` only there), with mise installed once
+on each machine ([mise's getting started](https://mise.jdx.dev/getting-started.html): `curl https://mise.run | sh`, or
+`brew install mise`). An empty folder, its own git, then mise-check's files and the template's little app, exactly as
+mise-check's own walk proves it on macOS, Linux and Windows:
 
 ```sh
 git init
@@ -18,8 +20,34 @@ mise run setup                                                     # the package
 mise run mise-check                                                # what's done, and what to run next
 ```
 
+`init` runs the newest release, or the one you name instead of `latest` (they're all on
+[its releases](https://github.com/joeblew999/mise-check/releases)); mise takes a new release as `latest` once it's a
+day old. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
+gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this page and its `.gitignore`.
+
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
-code of its own skips `mise-check:template`, which never writes over a file anyway.
+code of its own skips `mise-check:template`, which never writes over a file anyway. Commit what `init` and `template`
+wrote.
+
+## A new mise tool repo
+
+mise-check is the template for a new mise tool repo, a tool built the way mise-check and mise-cloudflare are: its
+binary, its template, its walks, its release and its CI. In an empty folder with its own git:
+
+```sh
+gh repo create <owner>/<name> --public    # its GitHub repo, empty: mise gets the tool's releases there
+mise exec github:joeblew999/mise-check@latest -- mise-check new-tool github.com/<owner>/<name>
+mise install
+mise run root:ci
+```
+
+`@latest` is the newest release a day old or more (mise's minimum release age); for one out today, name it,
+`@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
+
+It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
+`mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which
+the new repo imports from mise-check instead, pinned at that release. Its README is a short one, saying what to do next. `root:ci` passes from
+the start. Then you remove what the new tool doesn't need, and misecheck names what's left of each command you remove.
 
 ## The tasks
 
@@ -112,6 +140,13 @@ run = 'go test . -run "^TestRootMise$" -count=1 -v'
 | `GoCallers` | The folder of Go that runs the tasks by name, an end-to-end test say (optional) |
 | `GoBinaries` | Which binaries of `GoCmd` to hold to the strict way (optional; none, all of them): for a repo taking it up one binary at a time |
 | `Skills` | The agent skill of these tasks, a `SKILL.md`, and any page that must cover them too, your docs (optional): each must name every task and every flag the tasks take, and every task it names must be one, so the skill always covers everything the binary can do |
+| `Names` | Other files that name these tasks without covering them all, a hook, a workflow, a config file's comments (optional): every task one names, as `mise run namespace:task` or in full in a namespace of the file, must be one, so none sends a person or an agent to a task that isn't there |
+
+The packages are only the strict checks; the repo uses mise-check itself through mise, as any repo does: `mise-check
+init` at its top, and `go.mod` requiring the packages at the release `.mise/config.toml` pins. `Check` holds a repo to
+that in its own tests: without mise-check's tasks (`.mise/tasks/mise-check.toml`) it fails with the `mise exec
+github:joeblew999/mise-check@<release> -- mise-check init` line to run, and with the binary and the packages at two
+releases it says `mise run mise-check:update` moves both. A `go get` of the packages alone is the mistake it catches.
 
 ## The end-to-end tests: walk
 
@@ -165,10 +200,25 @@ run its Go).
 
 A task's `go test -run "^TestX$"` must name a test there is, in the folder it tests: a test renamed, and the task
 that runs it says so. Go that runs tasks names each in full (`"namespace:task"`), and every name must be a task. Each
-of `Skills` names every task and every flag, and every task it names is one.
+of `Skills` names every task and every flag, and every task it names is one; each of `Names` names only tasks there
+are.
 
 Skills: `mise run mise-check:check` holds every skill of the repo, `.claude/skills/<namespace>/SKILL.md`, to the tasks
 of that namespace, both ways: it names every task and every flag they take, and every task of the namespace it names
 is one. A test of the repo's own gets the same with `misecheck.CheckSkills(t, ".")`.
 
 The full rules are the [package documentation](https://pkg.go.dev/github.com/joeblew999/mise-check).
+
+## Moving to 0.4.20 or later
+
+0.4.20 dropped the env a repo's tasks used to configure the packages: each repo's tests say it in Go instead.
+
+| Before 0.4.20 | 0.4.20 and later |
+|---|---|
+| `func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }`, the task's `env` saying what (`MISE_FILE`, `GO_CMD`, `GO_LAYOUT`, `GO_CALLERS`, `GO_BINARIES`, `SKILL_FILE`) | A test for each mise file, its `misecheck.Config` written there: `func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }`, the task running it by name, no `env` |
+| `GoBinaries: "a,b"` | `GoBinaries: []string{"a", "b"}`, and `Skills` a list too |
+| `func TestWalk(t *testing.T) { w.Run(t) }`, the task's `env` saying which repo (`REPO_PATH`, `E2E_STAMPED`) and how far (`E2E_STAGE`) | A test a kind of repo, run by name: `func TestWalkTemplate(t *testing.T) { w.Template(t, "templates") }`, `func TestWalkNewRepo(t *testing.T) { w.NewRepo(t) }`; how far is the test's flag, `-args -stage deploy` |
+| A test the env skipped | `walk.OnlyByName(t)`: it runs only when its task names it, `-run "^TestX$"` |
+
+And misecheck now checks that a task's `go test -run "^TestX$"` names a test there is, so a test renamed and the task
+that runs it can't drift.

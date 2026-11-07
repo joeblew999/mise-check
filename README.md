@@ -23,98 +23,21 @@ by hand. And a repo's mise tasks drift from the Go they run, and work on one OS 
    [mise-cloudflare](https://github.com/joeblew999/mise-cloudflare) is added: from then on every step is a mise task,
    and `mise run mise-check` shows where the repo is.
 2. **Checks a repo's mise tasks against the Go they run, both ways, and walks them end to end**: two Go packages a
-   repo's own tests import, `misecheck` and `walk` (below). mise-check holds itself to them, and so does
-   mise-cloudflare.
+   repo's own tests import, `misecheck` and `walk`, in a repo that has run `init` as any other (below):
+   `misecheck.Check` fails in one that only requires them, and says what to run. mise-check holds itself to them, and
+   so does mise-cloudflare.
 
 ## Use it in your repo
 
-Step by step, at the repository's root (GitHub and Claude Code read `.github/` and `.claude/` only there), in a repo
-that's new or has code of its own:
-
-1. **Install mise**, once on each machine: [mise's getting started](https://mise.jdx.dev/getting-started.html)
-   (`curl https://mise.run | sh`, or `brew install mise`).
-2. **mise-check's files, always:**
-
-   ```sh
-   mise exec github:joeblew999/mise-check@latest -- mise-check init
-   ```
-
-   It runs the newest release, or the one you name instead of `latest` (they're all on
-   [its releases](https://github.com/joeblew999/mise-check/releases)); mise takes a new release as `latest` once it's
-   a day old. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which
-   mise gets from GitHub), its GitHub workflow, its Claude Code hook and skill, its docs and its `.gitignore`.
-3. **The template's app, only in a repo with no Go program yet:**
-
-   ```sh
-   mise run mise-check:template
-   ```
-
-   It writes the template's little app: a Go program and its go.mod, named for the repo's folder, the packages it
-   pins (`package.json`, its lockfile), the `mise.toml` with node and aube, and a README. It never writes over a file.
-4. **Then:**
-
-   ```sh
-   mise install       # node, aube, Go (from go.mod)
-   mise run setup     # the packages (aube install)
-   mise run mise-check
-   ```
-
-   It shows what's done, and what to run next.
-
-Commit what steps 2 and 3 wrote. Whenever you want the pins moved: `mise run mise-check:update`, then
-`mise run mise-check:verify`, which runs what GitHub runs.
-
-`init` writes everything your repo gets, its own docs among them: `docs/mise-check/README.md`, with every command,
-what each update moves and how, and its flags. That page is
-[templates/docs/mise-check/README.md](templates/docs/mise-check/README.md) here, in the template, just as a repo has
-it: the one place for how to use mise-check, so this README doesn't repeat it.
-
-## Start a new mise tool repo
-
-mise-check is the template for a new mise tool repo, a tool built the way mise-check and mise-cloudflare are: its
-binary, its template, its walks, its release and its CI. In an empty folder with its own git:
+How to use mise-check, from a new repo to every command and its flags, is one page:
+[templates/docs/mise-check/README.md](templates/docs/mise-check/README.md), which `init` writes into your repo as
+`docs/mise-check/README.md`. To start, at the repository's root, with [mise](https://mise.jdx.dev/getting-started.html)
+installed:
 
 ```sh
-gh repo create <owner>/<name> --public    # its GitHub repo, empty: mise gets the tool's releases there
-mise exec github:joeblew999/mise-check@latest -- mise-check new-tool github.com/<owner>/<name>
-mise install
-mise run root:ci
+mise exec github:joeblew999/mise-check@latest -- mise-check init
+mise run mise-check   # what's done, and what to run next
 ```
-
-`@latest` is the newest release a day old or more (mise's minimum release age); for one out today, name it,
-`@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
-
-It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
-`mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which
-the new repo imports from mise-check instead, pinned at that release. Its README is a short one, saying what to do next. `root:ci` passes from
-the start. Then you remove what the new tool doesn't need, and misecheck names what's left of each command you remove.
-
-## How it keeps a repo's tasks in step
-
-mise-check holds one structure on a repo's mise files and everything around them, both ways, so nothing drifts: every
-task one line, its flags declared and passed by name, no shell syntax Windows can't run; every task's command a
-command of the Go binary it runs, and every command a task's, each flag on both sides; every task the end-to-end tests
-name a task; and every agent skill (`.claude/skills/<namespace>/SKILL.md`) naming every task and flag of its
-namespace, and only tasks there are. `mise run mise-check:check` runs it in any repo, with no code of the repo's own;
-a repo with a binary of its own adds the strict checks with one test, `misecheck.Check`. The end-to-end tests are
-`walk`: a repo's tasks run in turn, through its own mise file, on its template and on a new repo.
-
-How to use all of it, misecheck and walk included, is the template's
-[docs/mise-check/README.md](templates/docs/mise-check/README.md), the page every repo gets.
-
-## Moving to 0.4.20 or later
-
-0.4.20 dropped the env a repo's tasks used to configure the packages: each repo's tests say it in Go instead.
-
-| Before 0.4.20 | 0.4.20 and later |
-|---|---|
-| `func TestMise(t *testing.T) { misecheck.Check(t, misecheck.FromEnv()) }`, the task's `env` saying what (`MISE_FILE`, `GO_CMD`, `GO_LAYOUT`, `GO_CALLERS`, `GO_BINARIES`, `SKILL_FILE`) | A test for each mise file, its `misecheck.Config` written there: `func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }`, the task running it by name, no `env` |
-| `GoBinaries: "a,b"` | `GoBinaries: []string{"a", "b"}`, and `Skills` a list too |
-| `func TestWalk(t *testing.T) { w.Run(t) }`, the task's `env` saying which repo (`REPO_PATH`, `E2E_STAMPED`) and how far (`E2E_STAGE`) | A test a kind of repo, run by name: `func TestWalkTemplate(t *testing.T) { w.Template(t, "templates") }`, `func TestWalkNewRepo(t *testing.T) { w.NewRepo(t) }`; how far is the test's flag, `-args -stage deploy` |
-| A test the env skipped | `walk.OnlyByName(t)`: it runs only when its task names it, `-run "^TestX$"` |
-
-And misecheck now checks that a task's `go test -run "^TestX$"` names a test there is, so a test renamed and the task
-that runs it can't drift.
 
 ## Working on mise-check
 
@@ -149,7 +72,7 @@ Every task is named noun:verb, what it acts on and then what it does. `mise task
 | `template:e2e` | The walk on the template, where it is | After every change |
 | `template:e2e-update` | A copy of the template as it is, in a folder of its own, with the go.mod `mise-check:template` writes, given old pins of every kind: each update must move its own and nothing else, then `update` has nothing left, and `verify` passes. The template itself never changes | After a change to an update |
 | `template:update` | The template's own pins at their newest, by its own `mise-check:update` | To move its pins; then the walks |
-| `new-repo:e2e` | The walk on a new repo made the README's way (`--version` makes it at a release) | After every change |
+| `new-repo:e2e` | The walk on a new repo made as the docs page says (`--version` makes it at a release) | After every change |
 | `new-repo:e2e-update` | A new repo given old pins of every kind: `update-mise`, `update-packages` and `update-go` must each move its own and nothing else, then `update` has nothing left, and `verify` passes | After a change to how a new repo is made (CI runs the template's) |
 | `new-tool:e2e` | A new mise tool repo, made by `mise-check new-tool` in an empty folder (`--version` makes it at a release), then its own `root:verify` must pass. Its GitHub repo is [mise-new-tool](https://github.com/joeblew999/mise-new-tool), empty on purpose. Not in `root:verify`, which it runs in the repo it makes, where it would make one again | `root:ci` runs it, and `new-repo.yml` at every release |
 
@@ -193,7 +116,7 @@ on any machine:
   root:ci`, the same command as on your machine: `tool:test`, `root:check-mise`, `template:check-mise`,
   then the walks one after the other (`template:e2e`, `template:e2e-update`, `new-repo:e2e`, `new-tool:e2e`), as they share the machine's one aube store. `new-repo:e2e-update` is the same update walk on a new repo: run it after a change to how a new repo is made.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
-  repo made the README's way at that release, walked, and a new mise tool repo made by `new-tool` at that release, its
+  repo made as the docs page says at that release, walked, and a new mise tool repo made by `new-tool` at that release, its
   own `root:verify` run (`new-tool:e2e --version`), on Linux, macOS and Windows.
 - [release.yml](.github/workflows/release.yml), on every change to what mise-check is (its binary, its packages, the
   template) merged to main: `tool:release`. It takes the commit's `v*` tag or tags the next patch version,
@@ -201,7 +124,7 @@ on any machine:
   made at that release is walked (`new-repo:e2e --version`), and the version goes on proxy.golang.org, so `go get`
   and pkg.go.dev have it at once; then `root:show-users` lists the repos that could move to it. So the release is always main: the binary and the packages are one version.
 
-This README is the one place for all of it, for people and agents alike: CLAUDE.md only loads it (`@README.md`).
+This README is the one place for working on mise-check, for people and agents alike: CLAUDE.md only loads it (`@README.md`). How to use mise-check is the docs page's, [templates/docs/mise-check/README.md](templates/docs/mise-check/README.md), never this README's: here, only how to start, and the link there.
 
 ## License
 

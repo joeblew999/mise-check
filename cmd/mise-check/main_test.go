@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -43,5 +44,27 @@ func TestOneRelease(t *testing.T) {
 	}
 	if !newer("v0.4.20", "v0.4.9") || newer("v0.4.9", "v0.4.20") || newer("v0.4.20", "v0.4.20") {
 		t.Error("newer compares releases by number")
+	}
+}
+
+// TestShow: show's next step, as a repo meets them: init's files missing, then init done and no Go program, then a
+// mise tool repo's binary (cmd/<name>/main.go), which is a Go program of its own, so the template isn't next.
+func TestShow(t *testing.T) {
+	r := repo{dir: t.TempDir()}
+	if s := r.status(); s.Next != "mise run mise-check:init" {
+		t.Fatalf("no init's files: next %q, want mise run mise-check:init (problems %q)", s.Next, s.Problems)
+	}
+	r.initRepo()
+	if s := r.status(); s.Next != "mise run mise-check:template" || len(s.Problems) > 0 {
+		t.Fatalf("init's files, no Go program: next %q, want mise run mise-check:template (problems %q)", s.Next, s.Problems)
+	}
+	if err := os.MkdirAll(filepath.Join(r.dir, "cmd", "tool"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(r.dir, "cmd", "tool", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if s := r.status(); s.Next != "mise run mise-check:update" || !s.App {
+		t.Fatalf("a binary at cmd/tool/main.go: next %q, app %v, want mise run mise-check:update, the template not next", s.Next, s.App)
 	}
 }

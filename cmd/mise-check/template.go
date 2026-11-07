@@ -26,7 +26,7 @@ func (r repo) template() {
 		writeFile(filepath.Join(r.dir, "README.md"), bytes.ReplaceAll(b, []byte(templates.AppName), []byte(name)))
 	}
 	if r.hasApp() {
-		fmt.Println("✓ the repo has a Go program of its own (main.go, or app/main.go): none of the template's written, its mise.toml included")
+		fmt.Println("✓ the repo has a Go program of its own (main.go, app/main.go or cmd/<name>/main.go): none of the template's written, its mise.toml included")
 		return
 	}
 	for _, f := range []string{"app/main.go", "app/main_test.go", "package.json", "pnpm-lock.yaml"} {
@@ -55,8 +55,10 @@ func (r repo) template() {
 	fmt.Println("✓ the template's app: next, mise run mise-check")
 }
 
-// hasApp reports whether the repo has a Go program of its own: a main.go at its top, or the template's, app/main.go.
+// hasApp reports whether the repo has a Go program of its own: a main.go at its top, the template's, app/main.go, or
+// a binary's, cmd/<name>/main.go, as a mise tool repo has it.
 func (r repo) hasApp() bool {
 	_, err := os.Stat(filepath.Join(r.dir, "app", "main.go"))
-	return r.exists("main.go") || err == nil
+	cmds, _ := filepath.Glob(filepath.Join(r.dir, "cmd", "*", "main.go"))
+	return r.exists("main.go") || err == nil || len(cmds) > 0
 }

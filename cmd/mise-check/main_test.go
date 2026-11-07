@@ -68,3 +68,60 @@ func TestShow(t *testing.T) {
 		t.Fatalf("a binary at cmd/tool/main.go: next %q, app %v, want mise run mise-check:update, the template not next", s.Next, s.App)
 	}
 }
+
+// TestExcludes: init lets mise take the owner's tools at their newest release, in a repo's own .mise/config.toml, however
+// it has its [settings]; and check, and so show, say to run init while one isn't there.
+func TestExcludes(t *testing.T) {
+	all := `minimum_release_age_excludes = ["github:joeblew999/mise-check", "github:joeblew999/mise-intl", "github:joeblew999/mise-cloudflare"]`
+	for _, c := range []struct{ name, in, want string }{
+		{"no [settings]", "[tools]\nnode = \"26\"\n", "[settings]\n" + all + "\n\n[tools]\nnode = \"26\"\n"},
+		{"a [settings] of its own", "[settings]\nexperimental = true\n\n[tools]\n", "[settings]\n" + all + "\nexperimental = true\n\n[tools]\n"},
+		{"a list of its own, one of them there", "[settings]\nminimum_release_age_excludes = [\"npm:*\", \"github:joeblew999/mise-intl\"]\n",
+			"[settings]\nminimum_release_age_excludes = [\"npm:*\", \"github:joeblew999/mise-intl\", \"github:joeblew999/mise-check\", \"github:joeblew999/mise-cloudflare\"]\n"},
+		{"every one there", "[settings]\n" + all + "\n", "[settings]\n" + all + "\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(p, []byte(c.in), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			wrote := addExcludes(p, []byte(c.in))
+			b, _ := os.ReadFile(p)
+			if string(b) != c.want || wrote != (c.in != c.want) {
+				t.Errorf("wrote %v:\n%s\nwant:\n%s", wrote, b, c.want)
+			}
+		})
+	}
+	r := repo{dir: t.TempDir()}
+	r.initRepo()
+	cfg := filepath.Join(r.dir, ".mise", "config.toml")
+	b, _ := os.ReadFile(cfg)
+	if err := os.WriteFile(cfg, excludesLine.ReplaceAll(b, nil), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if s := r.status(); s.Next != "mise run mise-check:init" {
+		t.Fatalf("a config.toml without the excludes: next %q, want mise run mise-check:init (problems %q)", s.Next, s.Problems)
+	}
+	r.initRepo()
+	if s := r.status(); len(excludesMissing(mustRead(t, cfg))) > 0 || slicesHas(s.Problems, "minimum_release_age_excludes") {
+		t.Fatalf("init again didn't add them back: problems %q", s.Problems)
+	}
+}
+
+func mustRead(t *testing.T, p string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func slicesHas(ss []string, sub string) bool {
+	for _, s := range ss {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}

@@ -13,6 +13,7 @@ mise-check's own walk proves it on macOS, Linux and Windows:
 
 ```sh
 git init
+mise settings add minimum_release_age_excludes github:joeblew999/mise-check   # once a machine: its newest release as latest
 mise exec github:joeblew999/mise-check@latest -- mise-check init   # mise-check's files, pinned at that release
 mise run mise-check:template                                       # the app, its go.mod, mise.toml, package.json
 mise install                                                       # node, aube, Go (from go.mod)
@@ -20,9 +21,11 @@ mise run setup                                                     # the package
 mise run mise-check                                                # what's done, and what to run next
 ```
 
-`init` runs the newest release, or the one you name instead of `latest` (they're all on
-[its releases](https://github.com/joeblew999/mise-check/releases)); mise takes a new release as `latest` once it's a
-day old. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
+mise holds back a release younger than a day as `latest` (`minimum_release_age`), so the first line has this machine
+take mise-check's at once: `init` then runs its newest release, or the one you name instead of `latest` (they're all on
+[its releases](https://github.com/joeblew999/mise-check/releases)). In the repo, `.mise/config.toml` does the same for
+the owner's tools (mise-check, mise-intl, mise-cloudflare), on every machine and in CI, and `mise-check:check` says
+when it doesn't. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
 gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this page and its `.gitignore`.
 
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
@@ -41,8 +44,8 @@ mise install
 mise run root:ci
 ```
 
-`@latest` is the newest release a day old or more (mise's minimum release age); for one out today, name it,
-`@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
+`@latest` is the newest release, after the first line of [A new repo](#a-new-repo); without it mise takes one only
+once it's a day old, so name it, `@0.5.0`. Without its GitHub repo, `new-tool` stops and says to make it.
 
 It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
 `mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which

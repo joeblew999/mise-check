@@ -47,10 +47,15 @@ func TestOneRelease(t *testing.T) {
 	if !newer("v0.4.20", "v0.4.9") || newer("v0.4.9", "v0.4.20") || newer("v0.4.20", "v0.4.20") {
 		t.Error("newer compares releases by number")
 	}
+	// The binary the older: the way out is init at the packages' release, which needs nothing of the old binary.
+	if p := (selves{mise: "0.4.19", module: "v0.4.20"}).apart(); !strings.Contains(p, initAt("0.4.20")) {
+		t.Errorf("the binary behind the packages: %q, want %q", p, initAt("0.4.20"))
+	}
 }
 
 // TestShow: show's next step, as a repo meets them: init's files missing, then init done and no Go program, then a
-// mise tool repo's binary (cmd/<name>/main.go), which is a Go program of its own, so the template isn't next.
+// mise tool repo's binary (cmd/<name>/main.go), which is a Go program of its own, so the template isn't next; nor in a
+// repo with only a go.mod.
 func TestShow(t *testing.T) {
 	r := repo{dir: t.TempDir()}
 	if s := r.status(); s.Next != "mise run mise-check:init" {
@@ -68,6 +73,13 @@ func TestShow(t *testing.T) {
 	}
 	if s := r.status(); s.Next != "mise run mise-check:update" || !s.App {
 		t.Fatalf("a binary at cmd/tool/main.go: next %q, app %v, want mise run mise-check:update, the template not next", s.Next, s.App)
+	}
+	// A go.mod and no program, a library's or a tool's tests: code of its own, so the template isn't next either.
+	lib := repo{dir: t.TempDir()}
+	lib.initRepo()
+	must(os.WriteFile(filepath.Join(lib.dir, "go.mod"), []byte("module example.com/lib\n"), 0o644))
+	if s := lib.status(); s.Next != "mise run mise-check:update" || !s.App {
+		t.Fatalf("a go.mod, no program: next %q, app %v, want mise run mise-check:update, the template not next", s.Next, s.App)
 	}
 }
 

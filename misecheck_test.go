@@ -339,7 +339,8 @@ func TestThroughMise(t *testing.T) {
 	const req = "module example.com/tool\n\nrequire github.com/joeblew999/mise-check v0.4.25\n"
 	for _, c := range []struct{ name, gomod, pin, want string }{
 		{"the packages alone, no init", req, "", "mise exec github:joeblew999/mise-check@0.4.25 -- mise-check init"},
-		{"the binary behind the packages", req, "0.4.24", "mise run mise-check:update moves both to one release"},
+		{"the binary behind the packages", req, "0.4.24", "mise exec github:joeblew999/mise-check@0.4.25 -- mise-check init"},
+		{"the packages behind the binary", req, "0.4.26", "mise run mise-check:update moves both to one release"},
 		{"both at one release", req, "0.4.25", ""},
 		{"a module that doesn't require it", "module example.com/app\n", "", ""},
 	} {

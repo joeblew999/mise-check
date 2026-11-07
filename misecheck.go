@@ -470,9 +470,26 @@ func checkThroughMise(t testing.TB, dir string) {
 		t.Errorf("mise-check's tasks are in %s, and its .mise/config.toml doesn't pin it (%s): mise run mise-check:init adds the pin, at its release", top, selfTool)
 	case replaced || string(p[1]) == "local" || string(p[1]) == "latest" || string(p[1]) == at:
 		t.Logf("through mise: mise-check's tasks in %s, its binary pinned at %s, its packages at %s", top, p[1], m[1])
+	case olderRelease(string(p[1]), at):
+		// The binary is the older, maybe too old to move itself well, so the way out is the one line that needs
+		// nothing of it: init at go.mod's release, an exact one, which mise gets at once, and which moves the pin there.
+		t.Errorf("mise-check's two pins are apart: .mise/config.toml pins the binary at %s, and go.mod requires the packages at %s (a go get of the packages alone leaves the binary behind). For the binary at the packages' release, at the repo's top, run\n"+
+			"    mise exec %s@%s -- mise-check init", p[1], m[1], selfTool, at)
 	default:
-		t.Errorf("mise-check's two pins are apart: .mise/config.toml pins the binary at %s, and go.mod requires the packages at %s. mise run mise-check:update moves both to one release (a go get of the packages alone leaves the binary behind)", p[1], m[1])
+		t.Errorf("mise-check's two pins are apart: .mise/config.toml pins the binary at %s, and go.mod requires the packages at %s. mise run mise-check:update moves both to one release", p[1], m[1])
 	}
+}
+
+// olderRelease reports whether release a (0.4.29) is before release b (0.4.30); false for anything but x.y.z.
+func olderRelease(a, b string) bool {
+	var x, y [3]int
+	if n, _ := fmt.Sscanf(a, "%d.%d.%d", &x[0], &x[1], &x[2]); n != 3 {
+		return false
+	}
+	if n, _ := fmt.Sscanf(b, "%d.%d.%d", &y[0], &y[1], &y[2]); n != 3 {
+		return false
+	}
+	return slices.Compare(x[:], y[:]) < 0
 }
 
 // upTo is the file name, a path from a folder, found in dir or a folder above it, or "": with repo, no higher than the

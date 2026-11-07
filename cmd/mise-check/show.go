@@ -8,7 +8,7 @@ import (
 // report is mise-check show --json: where the repo is, and what to run next.
 type report struct {
 	Version  string   `json:"version"`  // this build of mise-check
-	App      bool     `json:"app"`      // the repo has a Go program of its own (main.go, or the template's app/main.go)
+	App      bool     `json:"app"`      // the repo has Go of its own (a go.mod, or a Go program), or the template's app
 	Problems []string `json:"problems"` // check's
 	Next     string   `json:"next"`     // the task to run next
 }
@@ -25,7 +25,7 @@ func (r repo) show(jsonOut bool) {
 	fmt.Printf("mise-check %s\n", s.Version)
 	fmt.Printf("%s init      mise-check's files, as this version writes them\n", mark[!anyHas(s.Problems, initTask)])
 	fmt.Printf("%s check     the repo's rules\n", mark[len(s.Problems) == 0])
-	fmt.Printf("%s app       a Go program of the repo's own: main.go, app/main.go or cmd/<name>/main.go (or the template's: mise run mise-check:template)\n", mark[s.App])
+	fmt.Printf("%s app       Go of the repo's own, a go.mod (or the template's app, in a repo with none: mise run mise-check:template)\n", mark[s.App])
 	fmt.Println("· update    every pin at its newest release, whenever you want them moved")
 	for _, p := range s.Problems {
 		fmt.Println("  FAIL " + p)
@@ -33,9 +33,11 @@ func (r repo) show(jsonOut bool) {
 	fmt.Println("next: " + s.Next)
 }
 
-// status is where the repo is, which show says: the problems, whether it has a Go program, and the step to take next.
+// status is where the repo is, which show says: the problems, whether it has Go of its own, and the step to take next.
+// A repo with a go.mod has code of its own, a tool's or a library's, even with no program: the template, which would
+// add its little app and packages beside it, isn't next.
 func (r repo) status() report {
-	s := report{Version: buildVersion(), Problems: r.rules(), App: r.hasApp()}
+	s := report{Version: buildVersion(), Problems: r.rules(), App: r.hasApp() || r.exists("go.mod")}
 	switch {
 	case anyHas(s.Problems, initTask):
 		s.Next = "mise run mise-check:init"

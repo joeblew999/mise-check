@@ -52,7 +52,7 @@ func (r repo) template() {
 		writeFile(filepath.Join(r.dir, "mise.toml"), tasks)
 		trustConfig(r.dir, "mise.toml")
 	}
-	fmt.Println("✓ the template's app: next, mise run mise-check")
+	fmt.Println("✓ the template's app: next, mise install (node, aube, the Go go.mod names), mise run setup (its packages), then mise run mise-check")
 }
 
 // hasApp reports whether the repo has a Go program of its own: a main.go at its top, the template's, app/main.go, or

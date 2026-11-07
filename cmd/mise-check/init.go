@@ -386,8 +386,10 @@ func newestRelease() string {
 	return strings.TrimPrefix(tag, "v")
 }
 
-// sayNewest says, of a release, when GitHub has a newer one, and how to set the repo up at it: mise takes a release as
-// latest only once it's a day old, so @latest can run an older one than the newest.
+// sayNewest says, of a release, when GitHub has a newer one, and the one line that sets the repo up at it, on the same
+// line: @latest runs the release mise lists as its newest, and mise lists one some minutes after it's out (its
+// versions host, and GitHub's own API, which caches a minute or more). An exact release mise gets at once, and a
+// latest pin then runs it, the newest installed.
 func sayNewest() {
 	if version == "" {
 		return
@@ -396,10 +398,17 @@ func sayNewest() {
 	case n == "":
 		fmt.Printf("· this is mise-check %s; GitHub didn't say what its newest release is\n", buildVersion())
 	case older(buildVersion(), n):
-		fmt.Printf("· this is mise-check %s, and the newest release is %s: mise takes a release as latest only once it's a day old. For it, which moves the repo's pin to it:\n  mise exec %s@%s -- mise-check init\n", buildVersion(), n, self, n)
+		fmt.Printf("· this is mise-check %s, and its newest release is %s (mise lists one as latest some minutes after it's out). To set the repo up at %s: %s\n", buildVersion(), n, n, initAt(n))
 	default:
 		fmt.Printf("✓ mise-check %s, the newest release\n", buildVersion())
 	}
+}
+
+// initAt is the one line that sets a repo up at a release of mise-check (0.4.30), whatever runs now: mise gets an exact
+// release at once, as no list of releases is read for it; init then writes its files as that release does and moves
+// an older pin to it, and a pin of latest runs it, the newest installed.
+func initAt(release string) string {
+	return "mise exec " + self + "@" + release + " -- mise-check init"
 }
 
 // stale names the files init wrote that this version would write differently, and the repo's own files whose

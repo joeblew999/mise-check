@@ -83,13 +83,19 @@ func newer(a, b string) bool {
 	return false
 }
 
-// apart is the problem with the repo's two pins of mise-check, "" when they agree or it pins only one.
+// apart is the problem with the repo's two pins of mise-check, "" when they agree or it pins only one. When the binary
+// is the older, the binary running this is that older one, so the way out is the one line that needs nothing of it:
+// init at the packages' release, an exact one, which mise gets at once.
 func (s selves) apart() string {
 	if s.mise == "" || s.module == "" || "v"+s.mise == s.module {
 		return ""
 	}
-	return fmt.Sprintf("mise-check is one release, and the repo pins two: %s in %s, %s in go.mod (%s); mise run mise-check:update moves both to the newer",
-		s.mise, filepath.Base(s.miseFile), s.module, selfModule)
+	fix := "mise run mise-check:update moves both to the newer"
+	if newer(s.module, "v"+s.mise) {
+		fix = "for the binary at the packages' release, run " + initAt(strings.TrimPrefix(s.module, "v"))
+	}
+	return fmt.Sprintf("mise-check is one release, and the repo pins two: %s in %s, %s in go.mod (%s); %s",
+		s.mise, filepath.Base(s.miseFile), s.module, selfModule, fix)
 }
 
 // together moves the older of the two pins to the newer: the binary, with mise use, in the file that pins it; the

@@ -121,6 +121,9 @@ func TestBroken(t *testing.T) {
 		breakIt func(dir string)
 		want    string
 	}{
+		{"a template task numbered: only the root mise.toml and its end-to-end tasks are",
+			edit(tasksFile, `:show-version"]`, `:07-show-version"]`),
+			"07-show-version is numbered: only the repo's root mise.toml and its end-to-end tasks are numbered; name it "},
 		{"a task renamed, and Go still runs it by its old name",
 			edit(tasksFile, `:show"]`, `:view"]`),
 			"mise-check:show, which isn't a task"},
@@ -390,5 +393,21 @@ func TestToolRepoCI(t *testing.T) {
 	}
 	if p := readmeProblems("# tool\n\nA tool.\n", "tool"); len(p) != 2 || !strings.Contains(p[1], "**What tool does.**") {
 		t.Errorf("README with neither: %q", p)
+	}
+}
+
+// TestRootMiseToml: numbered tasks are a repo's root mise.toml's alone; a template's mise.toml, and files of tasks, aren't.
+func TestRootMiseToml(t *testing.T) {
+	for file, want := range map[string]bool{
+		"mise.toml":                        true,
+		"/home/me/repo/mise.toml":          true,
+		"templates/mise.toml":              false,
+		"templates/.mise/tasks/greet.toml": false,
+		".mise/tasks/greet.toml":           false,
+		"/tmp/x/templates/app/mise.toml":   false,
+	} {
+		if got := rootMiseToml(file); got != want {
+			t.Errorf("%s: %v, want %v", file, got, want)
+		}
 	}
 }

@@ -1,6 +1,6 @@
 // Package walk is the end-to-end test of a repo through its own mise file, the way a person there uses it: its
-// numbered tasks run in their order (mise run greet:03-init, greet:04-check, …), each checked by what it should have
-// done. A tool's repo walks its template where it is, and a new repo made from nothing as its README says, so every
+// tasks run in the order its tasks file has them (mise run greet:init, greet:check, …), each checked by what it should
+// have done. A tool's repo walks its template where it is, and a new repo made from nothing as its README says, so every
 // step a user takes is known to work, through the tasks they run.
 //
 // It is half of mise-check, which a repo uses through mise, never through this package alone: at the repo's top,
@@ -25,15 +25,15 @@
 //
 //	func TestWalkTemplate(t *testing.T) { greetWalk.Template(t, "templates") }
 //	func TestWalkNewRepo(t *testing.T)   { greetWalk.NewRepo(t) }
-//	func TestSteps(t *testing.T)         { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps) }
+//	func TestSteps(t *testing.T)         { walk.CheckSteps(t, "templates/.mise/tasks/greet.toml", steps, "greet") }
 //
 // Which repo is the test's name, and the task that runs it names it (go test . -run "^TestWalkTemplate$"); how far is
 // the test's flag -stage, and the release a new repo is made at its flag -version, both from the task's own usage
 // (-args -stage deploy). A walk runs only when its test is named, so go test ./... never walks (OnlyByName).
 //
-// The tool's test names each task in full ("greet:03-init"), never glued from pieces, so misecheck (GoCallers) checks
-// every name against the tasks file, and Numbered reads that file's numbered tasks, so a test can check its steps are
-// exactly those, in their order.
+// The tool's test names each task in full ("greet:init"), never glued from pieces, so misecheck (GoCallers) checks
+// every name against the tasks file, and Tasks reads that file's tasks in their order, so a test can check its steps
+// are those, in that order (CheckSteps).
 package walk
 
 import (
@@ -143,8 +143,8 @@ func (r Repo) Must(name string, args ...string) string {
 	return out
 }
 
-// Task runs the repo's own task, named in full (greet:04-check), as a person there runs it, with env added and input
-// typed into it (a secret's value, when it asks): mise run greet:04-check.
+// Task runs the repo's own task, named in full (greet:check), as a person there runs it, with env added and input
+// typed into it (a secret's value, when it asks): mise run greet:check.
 func (r Repo) Task(env []string, input, task string, args ...string) (string, error) {
 	fmt.Printf("$ mise run %s   (in %s)\n", strings.TrimSpace(task+" "+strings.Join(args, " ")), r.Name)
 	return Exec(r.Dir, r.Env(env...), input, "mise", append([]string{"run", task}, args...)...)
@@ -223,7 +223,7 @@ func (r Repo) Heading(format string, a ...any) { fmt.Printf("\n=== %s\n", fmt.Sp
 // Pass says what the walk has seen work.
 func (r Repo) Pass(format string, a ...any) { fmt.Printf("PASS %s\n", fmt.Sprintf(format, a...)) }
 
-// Step is one numbered task of the repo's mise file: the task, in full (greet:03-init), the first stage of the walk
+// Step is one task of the repo's mise file: the task, in full (greet:init), the first stage of the walk
 // that runs it, and how the walk runs it and checks it did what it says. A step the walk can't show working says why
 // in Skip, instead of a Check.
 type Step[W any] struct {
@@ -325,11 +325,13 @@ func OnlyByName(t *testing.T) {
 	}
 }
 
-// CheckSteps fails unless the steps are exactly the numbered tasks of the mise file, in their order (Numbered), so the
-// walk is that file's walk: a task added, renamed or moved, and the walk says so.
-func CheckSteps[W any](t *testing.T, file string, steps []Step[W]) {
+// CheckSteps fails unless the walk is that mise file's walk: its steps are tasks of the file, in the file's order,
+// and the steps with the others named (tasks a person runs but no step does: the tool's overview, its verify, …)
+// are every task of the file, each once. A task added, renamed or moved, and the walk says so. The order is the
+// file's: task names carry no numbers (only a repo's root mise.toml and its end-to-end tasks are numbered).
+func CheckSteps[W any](t *testing.T, file string, steps []Step[W], others ...string) {
 	t.Helper()
-	tasks, err := Numbered(file)
+	tasks, err := Tasks(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,25 +339,70 @@ func CheckSteps[W any](t *testing.T, file string, steps []Step[W]) {
 	for _, s := range steps {
 		ours = append(ours, s.Task)
 	}
-	if !slices.Equal(ours, tasks) {
-		t.Errorf("the walk's steps %v aren't %s's numbered tasks, in their order: %v", ours, file, tasks)
+	if err := StepsAgree(file, tasks, ours, others); err != nil {
+		t.Error(err)
 	}
 }
 
-// numbered is a numbered task's table: ["greet:03-init"] in a file of tasks only, [tasks."greet:03-init"] in a
-// mise.toml.
-var numbered = regexp.MustCompile(`(?m)^\[(?:tasks\.)?"([a-z0-9-]+:[0-9]{2}-[a-z0-9-]+)"\]\r?$`)
+// StepsAgree is CheckSteps' rule, on names: the steps are tasks of the file in its order, and the steps with the
+// others are every task of the file, each once.
+func StepsAgree(file string, tasks, steps, others []string) error {
+	var inFile []string
+	for _, task := range tasks {
+		if slices.Contains(steps, task) {
+			inFile = append(inFile, task)
+		}
+	}
+	if !slices.Equal(steps, inFile) {
+		return fmt.Errorf("the walk's steps %v aren't tasks of %s in its order: %v", steps, file, inFile)
+	}
+	all := append(slices.Clone(steps), others...)
+	slices.Sort(all)
+	want := slices.Clone(tasks)
+	slices.Sort(want)
+	if slices.Equal(all, want) {
+		return nil
+	}
+	var missing, extra []string
+	for _, task := range want {
+		if !slices.Contains(all, task) {
+			missing = append(missing, task)
+		}
+	}
+	seen := map[string]bool{}
+	for _, task := range all {
+		if !slices.Contains(want, task) || seen[task] {
+			extra = append(extra, task)
+		}
+		seen[task] = true
+	}
+	return fmt.Errorf("the walk's steps and others aren't %s's tasks, each once: in the file and not the walk %v, in the walk and not the file (or twice) %v", file, missing, slices.Compact(extra))
+}
 
-// Numbered is a mise file's numbered tasks (namespace:NN-name), in their order in it, so a test can check its steps are
-// exactly those.
-func Numbered(file string) ([]string, error) {
+// A task's table is ["greet:init"] or [greet] in a file of tasks only, [tasks."greet:init"] or [tasks.greet] in a
+// mise.toml, which has other tables too ([tools], [env]). A file with any [tasks.…] table is a mise.toml.
+var (
+	taskInTasksFile = regexp.MustCompile(`(?m)^\[(?:"([^"]+)"|([A-Za-z0-9_-]+))\]\r?$`)
+	taskInMiseToml  = regexp.MustCompile(`(?m)^\[tasks\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\]\r?$`)
+)
+
+// Tasks is a mise file's tasks, in their order in it, so a test can check its steps are tasks of the file in its order.
+func Tasks(file string) ([]string, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
+	task := taskInTasksFile
+	if taskInMiseToml.Match(b) {
+		task = taskInMiseToml
+	}
 	var tasks []string
-	for _, m := range numbered.FindAllStringSubmatch(string(b), -1) {
-		tasks = append(tasks, m[1])
+	for _, m := range task.FindAllStringSubmatch(string(b), -1) {
+		name := m[1]
+		if name == "" {
+			name = m[2]
+		}
+		tasks = append(tasks, name)
 	}
 	return tasks, nil
 }

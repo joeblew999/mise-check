@@ -28,7 +28,7 @@
 //
 // How it's used, in mise-cloudflare say: a loop that runs both ways, mise to Go and back, several levels deep. Its
 // root mise.toml runs Go tests (mise run template:e2e-serve runs TestWalkTemplate), which run its template's tasks by name
-// (cloudflare:06-serve), which run its tool's Go (mise-cloudflare serve). A task of each mise file runs Check on it,
+// (cloudflare:serve), which run its tool's Go (mise-cloudflare serve). A task of each mise file runs Check on it,
 // even on the file that holds that task: root:check-mise checks the mise.toml it's in, and template:check-mise checks
 // the template's tasks against the Go they run and against the end-to-end Go that runs them, so every link is checked
 // in both directions.
@@ -164,6 +164,7 @@ func Check(t testing.TB, c Config) {
 			g.binaries = picked
 		}
 	}
+	checkNumbered(t, file, tasks)
 	checkMiseToGo(t, file, tasks, g)
 	if cmd != "" {
 		checkGoToMise(t, file, tasks, g)
@@ -180,6 +181,32 @@ func Check(t testing.TB, c Config) {
 		return
 	}
 	checkGoCallsMise(t, file, tasks, callers)
+}
+
+// numberedTask is a numbered task's name, namespace:NN-verb: its namespace and its plain name.
+var numberedTask = regexp.MustCompile(`^([a-z0-9-]+):[0-9]{2}-([a-z0-9-]+)$`)
+
+// checkNumbered: only a repo's root mise.toml (its own control plane) and the end-to-end tasks in it are numbered, to
+// say the order a developer of that repo meets them. A template's tasks, which init writes into other repos, and any
+// other tasks file, are named plainly (namespace:verb): the walk takes their order from the file (walk.CheckSteps).
+func checkNumbered(t testing.TB, file string, tasks []task) {
+	t.Helper()
+	if rootMiseToml(file) {
+		return
+	}
+	for _, tk := range tasks {
+		if m := numberedTask.FindStringSubmatch(tk.name); m != nil {
+			t.Errorf("%s: %s is numbered: only the repo's root mise.toml and its end-to-end tasks are numbered; name it %s:%s", file, tk.name, m[1], m[2])
+		}
+	}
+}
+
+// rootMiseToml: the file is a repo's own mise.toml, not one in a template (templates/…) or a file of tasks.
+func rootMiseToml(file string) bool {
+	if filepath.Base(file) != "mise.toml" {
+		return false
+	}
+	return !slices.Contains(strings.Split(filepath.ToSlash(filepath.Clean(file)), "/"), "templates")
 }
 
 // ---- The two forms ----
@@ -407,7 +434,7 @@ func named(text string, namespaces map[string]bool, runs bool) []string {
 	return slices.Sorted(maps.Keys(found))
 }
 
-// miseRun is a task named after mise run, in full: mise run cloudflare:03-init.
+// miseRun is a task named after mise run, in full: mise run cloudflare:init.
 var miseRun = regexp.MustCompile(`mise run ([a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*)`)
 
 // ---- Used through mise ----

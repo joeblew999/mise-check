@@ -253,10 +253,13 @@ run = 'go test . -run "^TestWalkNewRepo$" -count=1 -v{% if usage.version %} -arg
 | `-version` | The release a new repo is made at (default this checkout's build) |
 | `-stage` | How far to walk, when your steps have stages (default the first) |
 
-For a tool whose steps are numbered in the order a repo takes them (mise-cloudflare's `cloudflare:03-init` to
-`15-clean`), `CheckSteps` fails unless your steps are exactly your mise file's numbered tasks, in their order; a tool
-with few steps (mise-check's `init`, `check`, `show`) needs no numbers, and no `TestSteps`. Either way, misecheck
-(`GoCallers`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
+Your template's tasks are named plainly, `<namespace>:<verb>` (`cloudflare:init`, `cloudflare:deploy`): only your repo's
+root `mise.toml` and its end-to-end tasks are numbered, and `Check` fails on a numbered task anywhere else, naming the
+plain name. The order of the walk is your tasks file's order: `walk.CheckSteps(t, file, steps, others...)` fails unless
+your steps are tasks of the file in its order, and your steps with the others you name (the tasks a person runs that
+no step does: the overview, `verify`, `show-help`) are every task of the file, each once. A task added, renamed or
+moved, and the test says so. A tool with few steps (mise-check's `init`, `check`, `show`) needs no `TestSteps`. Either
+way, misecheck (`GoCallers`) checks that every task name your steps use is a task. When the repo walked needs something its own mise
 files can't give it, cut off from the repo around it, `Prepare` adds it (mise-check's own gives its template, a folder of
 its module with no `go.mod` of its own, that module's Go).
 

@@ -6,8 +6,10 @@ runs `mise-check <command>`. Start with `mise run mise-check`: what's done, and 
 
 ## A new repo
 
-An empty folder, its own git, then mise-check's files and the template's little app, exactly as the walk proves it on
-macOS, Linux and Windows (mise run new-repo:e2e):
+At the repository's root (GitHub and Claude Code read `.github/` and `.claude/` only there), with mise installed once
+on each machine ([mise's getting started](https://mise.jdx.dev/getting-started.html): `curl https://mise.run | sh`, or
+`brew install mise`). An empty folder, its own git, then mise-check's files and the template's little app, exactly as
+the walk proves it on macOS, Linux and Windows (mise run new-repo:e2e):
 
 ```sh
 git init
@@ -18,8 +20,14 @@ mise run setup                                                     # the package
 mise run mise-check                                                # what's done, and what to run next
 ```
 
+`init` runs the newest release, or the one you name instead of `latest` (they're all on
+[its releases](https://github.com/joeblew999/mise-check/releases)); mise takes a new release as `latest` once it's a
+day old. It writes the repo's `.mise/` folder (its tasks, and mise-check pinned at exactly that release, which mise
+gets from GitHub), its GitHub workflow, its Claude Code hook and skill, this page and its `.gitignore`.
+
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
-code of its own skips `mise-check:template`, which never writes over a file anyway.
+code of its own skips `mise-check:template`, which never writes over a file anyway. Commit what `init` and `template`
+wrote.
 
 ## The tasks
 

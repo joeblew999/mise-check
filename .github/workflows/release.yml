@@ -9,7 +9,7 @@ on:
   push:
     branches: [main]
     # Not the template's own pin of mise-check, nor a test: neither changes anything in the tool.
-    paths: ["cmd/**", "misecheck.go", "walk/**", "miseconfig/**", "templates/**", "!templates/.mise/config.toml", "!**/*_test.go", "go.mod", "go.sum", ".goreleaser.yaml", ".github/workflows/release.yml"]
+    paths: ["cmd/**", "misecheck.go", "walk/**", "miseconfig/**", "toolfiles/**", "release/**", "templates/**", "!templates/.mise/config.toml", "!**/*_test.go", "go.mod", "go.sum", ".goreleaser.yaml", ".github/workflows/release.yml"]
     tags: ["v*"]
 
 concurrency:

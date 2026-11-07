@@ -8,8 +8,12 @@ import (
 	misecheck "github.com/joeblew999/mise-check"
 )
 
-// TestRootMise checks this repo's own mise file: mise run root:check-mise runs it.
-func TestRootMise(t *testing.T) { misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"}) }
+// TestRootMise checks this repo's own mise file, and that the repo has the one shape of a mise tool repo (root:ci,
+// what its ci.yml runs, and nothing else there; no template task wrapping mise-check): mise run root:check-mise runs it.
+func TestRootMise(t *testing.T) {
+	misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"})
+	misecheck.CheckToolRepo(t, ".")
+}
 
 // TestTemplateMise checks the template's tasks file the strict way, against the binary's Go (cmd/), the walk that
 // runs them (this folder's tests), the skill and the docs, and the other files init writes that name its tasks: mise

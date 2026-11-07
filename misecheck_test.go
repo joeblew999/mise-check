@@ -363,3 +363,24 @@ func TestThroughMise(t *testing.T) {
 		})
 	}
 }
+
+// TestToolRepoCI: a tool repo's ci.yml runs mise run root:ci once a change, and only that; each other way is caught.
+func TestToolRepoCI(t *testing.T) {
+	const good = "on:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    steps:\n      - name: All (mise run root:ci)\n        run: mise run root:ci\n"
+	for ci, want := range map[string]string{
+		good: "",
+		strings.Replace(good, "    branches: [main]\n", "    branches: [main]\n    tags: [\"v*\"]\n", 1): "runs on tags",
+		strings.Replace(good, "    branches: [main]\n", "", 1):                                           "every branch's push",
+		"on: [push, pull_request]\n" + good[strings.Index(good, "jobs:"):]:                               "every branch's push among them",
+		strings.Replace(good, "run: mise run root:ci", "run: mise run tool:test", 1):                     "runs mise run tool:test",
+		strings.Replace(good, "run: mise run root:ci", "run: go test ./... && mise run root:ci", 1):      "runs go test itself",
+	} {
+		got := strings.Join(ciProblems(ci), "\n")
+		if want == "" && got != "" || !strings.Contains(got, want) {
+			t.Errorf("want %q, got %q, of:\n%s", want, got, ci)
+		}
+	}
+	if !wrapsMiseCheck.MatchString("mise-check update{% if usage.json %} --json{% endif %}") || wrapsMiseCheck.MatchString("mise-cloudflare deploy") {
+		t.Error("wrapsMiseCheck: mise-check update wraps mise-check; mise-cloudflare deploy doesn't")
+	}
+}

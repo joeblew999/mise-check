@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// selfModule is mise-check as a repo's go.mod requires it: its packages, misecheck, walk and miseconfig.
+// selfModule is mise-check as a repo's go.mod requires it: its packages, misecheck, walk, release, toolfiles and miseconfig.
 const selfModule = "github.com/joeblew999/mise-check"
 
 // selves is mise-check as the repo pins it twice: the binary in a mise file, and the packages in its go.mods. They're

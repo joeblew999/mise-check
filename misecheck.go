@@ -419,6 +419,111 @@ const (
 	selfModule = "github.com/joeblew999/mise-check"
 )
 
+// CheckToolRepo holds a mise tool repo, at dir (its top), to the one shape every tool repo has, mise-check's own and
+// every one new-tool makes, saying of each thing that isn't what to change: its mise.toml has root:ci, exactly what
+// GitHub's CI runs, and root:verify, the checks and the walks; its .github/workflows/ci.yml runs mise run root:ci and
+// nothing else of its own (no other task, no go command), once a change: on a push to main and on a pull request,
+// never on a tag or every branch's push; and no task of its template (templates/.mise/tasks/*.toml) runs mise-check,
+// whose own tasks the tool's init gives a repo (toolfiles.MiseCheckInit). A tool repo's test of its root mise file
+// calls it:
+//
+//	func TestRootMise(t *testing.T) {
+//		misecheck.Check(t, misecheck.Config{MiseFile: "mise.toml"})
+//		misecheck.CheckToolRepo(t, ".")
+//	}
+func CheckToolRepo(t testing.TB, dir string) {
+	t.Helper()
+	tasks, _, err := readTasks(filepath.Join(dir, "mise.toml"))
+	if err != nil {
+		t.Errorf("a tool repo's mise.toml, at its top: %v", err)
+	}
+	has := map[string]bool{}
+	for _, k := range tasks {
+		has[k.name] = true
+	}
+	for name, what := range map[string]string{"root:ci": "exactly what GitHub's CI runs, the one task ci.yml runs: root:verify, and anything CI adds", "root:verify": "the checks and the walks, what root:ci runs first"} {
+		if !has[name] {
+			t.Errorf("mise.toml has no %s task: add [tasks.%q], %s", name, name, what)
+		}
+	}
+	ci, err := os.ReadFile(filepath.Join(dir, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Errorf("no .github/workflows/ci.yml: a tool repo's CI is one workflow that runs mise run root:ci, on a push to main and on a pull request, as mise-check's does")
+	}
+	for _, p := range ciProblems(strings.ReplaceAll(string(ci), "\r\n", "\n")) {
+		t.Error(".github/workflows/ci.yml " + p)
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "templates", ".mise", "tasks", "*.toml"))
+	for _, f := range files {
+		if filepath.Base(f) == "mise-check.toml" { // mise-check's own tasks, which init writes
+			continue
+		}
+		ts, _, _ := readTasks(f)
+		for _, k := range ts {
+			if wrapsMiseCheck.MatchString(k.run) {
+				t.Errorf("%s: the task %s runs mise-check (%s): a tool's tasks never wrap mise-check's. Its init runs mise-check's own init (toolfiles.MiseCheckInit), and a repo runs mise run mise-check:<command> itself", displayPath(f), k.name, k.run)
+			}
+		}
+	}
+	t.Logf("tool repo: %s has root:ci and root:verify, ci.yml runs only mise run root:ci on main's pushes and pull requests, and %d template task files wrap no mise-check command", dir, len(files))
+}
+
+// wrapsMiseCheck matches a run line that runs mise-check, the binary or its tasks.
+var wrapsMiseCheck = regexp.MustCompile(`(?:^|[\s;&|(])mise-check(?:\s|$)|mise run mise-check(?:[:\s]|$)`)
+
+// ciProblems are what ci (a workflow's text) does that a tool repo's ci.yml mustn't, each with what to change: run on
+// a tag or every branch's push, miss main's push, or run anything of its own but mise run root:ci.
+func ciProblems(ci string) []string {
+	if ci == "" {
+		return nil
+	}
+	var out []string
+	lines := strings.Split(ci, "\n")
+	var on []string // the on: block's lines
+	for i, l := range lines {
+		if m := regexp.MustCompile(`^"?on"?:\s*(.*)$`).FindStringSubmatch(l); m != nil {
+			if v := strings.TrimSpace(m[1]); v != "" && !strings.HasPrefix(v, "#") {
+				out = append(out, "runs on: "+v+", every branch's push among them: on: push: branches: [main], and pull_request:")
+			}
+			for _, b := range lines[i+1:] {
+				if b != "" && !strings.HasPrefix(b, " ") && !strings.HasPrefix(b, "#") {
+					break
+				}
+				on = append(on, b)
+			}
+			break
+		}
+	}
+	block := strings.Join(on, "\n")
+	switch {
+	case regexp.MustCompile(`(?m)^\s+tags(-ignore)?:`).MatchString(block):
+		out = append(out, "runs on tags: drop on.push.tags, as a tag's commit ran as main's push already")
+	case !regexp.MustCompile(`(?m)^\s+push:`).MatchString(block) && len(on) > 0:
+		out = append(out, "doesn't run on a push to main: on: push: branches: [main]")
+	case len(on) > 0 && !regexp.MustCompile(`(?m)^\s+branches:\s*\[\s*["']?main["']?\s*\]|^\s+branches:\s*\n\s+-\s*["']?main["']?\s*$`).MatchString(block):
+		out = append(out, "runs on every branch's push, or on branches but main: on.push.branches: [main] (a branch's pull request runs it)")
+	}
+	ran := false
+	for _, l := range lines {
+		if s := strings.TrimSpace(l); strings.HasPrefix(s, "#") || strings.HasPrefix(s, "name:") {
+			continue
+		}
+		for _, m := range regexp.MustCompile(`mise run ([^\s"'#;&|()]+)`).FindAllStringSubmatch(l, -1) {
+			if m[1] != "root:ci" {
+				out = append(out, "runs mise run "+m[1]+": it runs only mise run root:ci; put "+m[1]+" in root:verify (or root:ci)")
+			}
+			ran = true
+		}
+		if m := regexp.MustCompile(`(?:^|[\s;&|])(go (?:test|vet|build|run|generate)|goreleaser)\b`).FindStringSubmatch(l); m != nil {
+			out = append(out, "runs "+m[1]+" itself: put it in a task root:verify runs, and let ci.yml run only mise run root:ci")
+		}
+	}
+	if !ran {
+		out = append(out, "doesn't run mise run root:ci: its last step is run: mise run root:ci")
+	}
+	return out
+}
+
 // checkThroughMise holds a repo whose tests import mise-check's packages to using mise-check itself, through mise:
 // the repo has the tasks mise-check init writes (.mise/tasks/mise-check.toml), and .mise/config.toml pins the binary
 // at the release go.mod requires the packages at. The packages are only the strict checks for a tool repo's own tests;

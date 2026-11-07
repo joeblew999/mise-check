@@ -112,7 +112,7 @@ func TestWalkNewTool(t *testing.T) {
 	}
 	n.Must("mise", append(append([]string{"exec", "github:joeblew999/mise-check@" + at, "--", "mise-check", "new-tool"}, from...), "github.com/joeblew999/mise-new-tool")...)
 	n.Pass("%s: an empty folder, its own git, mise-check new-tool at %s", n.Name, at)
-	for _, gone := range []string{"misecheck.go", "walk", "miseconfig", filepath.Join("cmd", "mise-check")} {
+	for _, gone := range []string{"misecheck.go", "walk", "miseconfig", "toolfiles", "release", filepath.Join("cmd", "mise-check")} {
 		if _, err := os.Stat(filepath.Join(n.Dir, gone)); err == nil {
 			t.Fatalf("%s: new-tool left %s", n.Name, gone)
 		}

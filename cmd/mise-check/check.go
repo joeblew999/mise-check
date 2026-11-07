@@ -32,17 +32,11 @@ func (r repo) check(jsonOut bool) {
 	}
 }
 
-// rules are check's problems: init's files as this version writes them, mise-check's parts of .mise/config.toml
-// (miseconfig: its pin, its own minimum_release_age_excludes entry, use_versions_host), the binary's pin and the
-// packages' (go.mod) at one release, misecheck's rules on the repo's own mise files, and every skill of the repo
-// against its tasks. None, and the repo passes.
+// rules are check's problems: init's files as this version writes them (toolfiles, mise-check's parts of
+// .mise/config.toml among them), the binary's pin and the packages' (go.mod) at one release, misecheck's rules on the
+// repo's own mise files, and every skill of the repo against its tasks. None, and the repo passes.
 func (r repo) rules() []string {
-	problems := append(r.stale(), r.miseRules()...)
-	if b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml")); err != nil {
-		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run "+initTask)
-	} else {
-		problems = append(problems, configTool().Problems(b)...)
-	}
+	problems := append(toolFiles().Problems(r.dir), r.miseRules()...)
 	if p := r.selves(r.goModules()).apart(); p != "" {
 		problems = append(problems, p)
 	}

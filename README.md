@@ -45,7 +45,7 @@ This repo is two things, kept apart:
 
 | | What | Where |
 |---|---|---|
-| **For other repos** | The `mise-check` binary and the template, a whole repo you can drop anywhere and run, whose tool half `init` writes into a repo (its tasks, its check workflow, its Claude Code hook and skill, its docs, its `.gitignore`); and the packages: `misecheck` and `walk` for a repo's tests, `miseconfig` for a tool's init | [templates/](templates/), [cmd/mise-check/](cmd/mise-check/), [misecheck.go](misecheck.go), [walk/](walk/), [miseconfig/](miseconfig/) |
+| **For other repos** | The `mise-check` binary and the template, a whole repo you can drop anywhere and run, whose tool half `init` writes into a repo (its tasks, its check workflow, its Claude Code hook and skill, its docs, its `.gitignore`); and the packages every mise tool repo imports: `misecheck`, `walk` and `release` for its tests, `toolfiles` and `miseconfig` for its init | [templates/](templates/), [cmd/mise-check/](cmd/mise-check/), [misecheck.go](misecheck.go), [walk/](walk/), [release/](release/), [toolfiles/](toolfiles/), [miseconfig/](miseconfig/) |
 | **For this repo** | The tasks for working on it, its tests, its CI. This README | [mise.toml](mise.toml), the `*_test.go` at the top, [.github/workflows/](.github/workflows/) |
 
 Nothing for this repo is ever in `templates/`, and nothing in `templates/` is this repo's own. Everything is driven
@@ -103,7 +103,7 @@ of it broken eleven ways, one at a time (its skill among them), is caught each t
 |---|---|---|
 | [templates/](templates/) | other repos' | the template: the little app plus the tool's half, which `init` writes into a repo at the same paths; [templates.go](templates/templates.go) lists that half |
 | [cmd/mise-check/](cmd/mise-check/) | other repos' | the command: a file per command, `x.go` holding `r.x`, which `main.go`'s `case "x"` calls |
-| [misecheck.go](misecheck.go), [walk/](walk/), [miseconfig/](miseconfig/) | other repos' | the packages: the two a repo's tests import, and the one a tool's init keeps its parts of a repo's `.mise/config.toml` with |
+| [misecheck.go](misecheck.go), [walk/](walk/), [release/](release/), [toolfiles/](toolfiles/), [miseconfig/](miseconfig/) | other repos' | the packages every mise tool repo imports, never copies: its mise files' checks and its shape (`CheckToolRepo`), its walks and its release for its tests; its init's files and its parts of a repo's `.mise/config.toml` |
 | [e2e_walk_test.go](e2e_walk_test.go), [e2e_tool_test.go](e2e_tool_test.go) | this repo's | at the top, as the end-to-end runs on everything else: the walks and the updates; `TestToolRelease`, the release, which only `mise run tool:release` runs |
 | [.github/workflows/](.github/workflows/) | this repo's | its own workflows; other repos get theirs from `templates/` |
 

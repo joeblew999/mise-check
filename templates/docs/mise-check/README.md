@@ -31,10 +31,11 @@ GitHub's API caches its answer a minute or more, which nothing in a repo can sho
 line, with the one command for the newest, an exact release, which mise gets at once:
 `mise exec github:joeblew999/mise-check@<release> -- mise-check init`.
 
-From then on the repo's own `.mise/config.toml` takes the owner's tools (mise-check, mise-intl, mise-cloudflare) at
-their newest release, on every machine and in CI: none held back a day (`minimum_release_age_excludes`), and from
-GitHub's own list of releases, not the versions host (`use_versions_host = false`); `mise-check:check` says when it
-doesn't.
+From then on the repo's own `.mise/config.toml` takes mise-check at its newest release, on every machine and in CI:
+never held back a day (its name in `minimum_release_age_excludes`), and from GitHub's own list of releases, not the
+versions host (`use_versions_host = false`); `mise-check:check` says when it doesn't. Every tool whose init keeps its
+parts of the file with `miseconfig` (below) adds its own name to that list, beside the repo's entries and the other
+tools', so no list of tools is kept anywhere.
 
 No Go is needed first: `mise-check:template` writes the go.mod, and `mise install` brings the Go it names. A repo with
 code of its own skips `mise-check:template`, which never writes over a file anyway. Commit what `init` and `template`
@@ -55,9 +56,24 @@ mise run root:ci
 It runs mise-check's newest release, as `init` does in [A new repo](#a-new-repo). Without its GitHub repo, `new-tool` stops and says to make it.
 
 It copies mise-check at that release, everything git holds, from Go's module proxy, as `go get` has it; renames
-`mise-check` to `<name>` in every file's name and contents; and drops the two packages, `misecheck` and `walk`, which
-the new repo imports from mise-check instead, pinned at that release. Its README is a short one, saying what to do next. `root:ci` passes from
-the start. Then you remove what the new tool doesn't need, and misecheck names what's left of each command you remove.
+`mise-check` to `<name>` in every file's name and contents; and drops the three packages, `misecheck`, `walk` and
+`miseconfig`, which the new repo imports from mise-check instead, pinned at that release. Its README is a short one,
+saying what to do next. `root:ci` passes from the start. Then you remove what the new tool doesn't need, and misecheck
+names what's left of each command you remove.
+
+Its init is mise-check's, renamed: it keeps the new tool's parts of a repo's own `.mise/config.toml` with
+`miseconfig`, as any tool's init can:
+
+```go
+t := miseconfig.Tool{Name: "github:<owner>/<name>", Release: "0.1.0", Template: tmpl, Init: "mise run <name>:init"}
+b, err := t.Pinned()        // a repo with no .mise/config.toml: the template's, pinned at this release
+out, wrote := t.Keep(own)   // a repo's own: the tool's parts as this release writes them, what it wrote, the rest as it was
+problems := t.Problems(own) // what the tool's check reports of it, each naming t.Init
+```
+
+Its parts are the tool's pin (added, or moved forward to the release; `local` and `latest` stay), its own name in
+`minimum_release_age_excludes`, `use_versions_host = false`, and the comment at the file's top when the file is the
+tool's (it starts `# <name> `), each with its comment from the template's `.mise/config.toml` (`tmpl`).
 
 ## The tasks
 
@@ -115,9 +131,10 @@ and adds what `.mise/config.toml` lacks of the template's settings.
 also a task of its own: `update-mise`, `update-packages`, `update-go`), and mise reads no
 parent folder's config, so nothing outside the repo moves:
 
-1. mise's tools, in the repo's mise files: `mise upgrade --bump --local`, after `mise cache clear` of the owner's
-   tools (mise-check, mise-intl, mise-cloudflare), whose releases it takes the minute they're out: mise keeps a tool's
-   list of releases an hour, and holds back every other tool's a day. A pin of `latest` stays `latest`.
+1. mise's tools, in the repo's mise files: `mise upgrade --bump --no-global`, after `mise cache clear` of the tools the
+   repo takes the minute they're out (the ones its `minimum_release_age_excludes` names, mise-check always among
+   them): mise keeps a tool's list of releases an hour, and holds back every other tool's a day. A pin of `latest`
+   stays `latest`.
 2. its packages, when it has a `package.json`: `aube update --latest`, which writes whichever lockfile the repo has
 3. in every `go.mod` of the repo (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder):
    - its Go: `go get toolchain@latest`, the toolchain line. The `go` line, the least Go the module needs, stays.

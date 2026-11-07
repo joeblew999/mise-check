@@ -84,9 +84,9 @@ func TestShow(t *testing.T) {
 }
 
 // TestOwnFiles: init writes mise-check's parts of the repo's own files as this version has them, and nothing else of
-// them: the comment at the top of .mise/config.toml, the owner's tools in its minimum_release_age_excludes beside the
-// repo's own, the .gitignore lines, the hook in a .claude/settings.json with a hook of its own; check says to run init
-// until it has.
+// them: in .mise/config.toml (miseconfig's, which its own test holds to each part) its own name beside the repo's
+// entry, the .gitignore lines, the hook in a .claude/settings.json with a hook of its own; check says to run init until
+// it has.
 func TestOwnFiles(t *testing.T) {
 	r := repo{dir: t.TempDir()}
 	r.initRepo()
@@ -103,8 +103,9 @@ func TestOwnFiles(t *testing.T) {
 	if s := r.status(); len(s.Problems) > 0 {
 		t.Fatalf("after init: %q", s.Problems)
 	}
+	// .mise/config.toml's parts are miseconfig's, its own test's: here, only that the repo's own stay.
 	cfg, ignore, settings := read(".mise/config.toml"), read(".gitignore"), read(".claude/settings.json")
-	for _, want := range []string{header(string(templateConfig)), excludesComment() + `minimum_release_age_excludes = ["npm:*", "github:joeblew999/mise-check"`, "\nuse_versions_host = false\n", `= "local"`} {
+	for _, want := range []string{`minimum_release_age_excludes = ["npm:*", "github:joeblew999/mise-check"]`, `= "local"`} {
 		if !strings.Contains(cfg, want) {
 			t.Errorf("config.toml has no %q:\n%s", want, cfg)
 		}

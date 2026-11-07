@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/joeblew999/mise-check/miseconfig"
 )
 
 // self is mise-check as a repo's mise pins it (.mise/config.toml, which init writes).
@@ -50,9 +52,9 @@ func (r repo) updatePins(o updates, kinds ...string) {
 	mods := r.goModules()
 	before := r.pins(mods)
 	if does("mise") {
-		// The owner's tools' cached lists of releases, cleared first: mise keeps a tool's list an hour
-		// (fetch_remote_versions_cache), and mise exec reads whatever it has, so a release the minute it's out is seen.
-		r.runOwnMise(r.dir, append([]string{"cache", "clear"}, excludes...)...)
+		// The cached lists of releases of the tools the repo takes the minute they're out, cleared first: mise keeps a
+		// tool's list an hour (fetch_remote_versions_cache), and mise exec reads whatever it has.
+		r.runOwnMise(r.dir, append([]string{"cache", "clear"}, r.taken()...)...)
 		upgrade := []string{"upgrade", "--bump", "--no-global"}
 		for _, name := range r.atLocal() { // a checkout's own build (mise link, mise-check's or any tool's): it stays
 			upgrade = append(upgrade, "--exclude", name)
@@ -123,6 +125,22 @@ func (r repo) updatePins(o updates, kinds ...string) {
 	for _, l := range lines {
 		fmt.Println("  " + l)
 	}
+}
+
+// taken are the tools the repo takes the minute they're out, never held back a day: the ones its mise files list in
+// minimum_release_age_excludes, where each tool's init adds its own name, mise-check always among them; a pattern
+// (npm:*) names no tool's list.
+func (r repo) taken() []string {
+	out := []string{self}
+	for _, f := range []string{filepath.Join(".mise", "config.toml"), "mise.toml"} {
+		b, _ := os.ReadFile(filepath.Join(r.dir, f))
+		for _, e := range miseconfig.Excludes(b) {
+			if !strings.ContainsAny(e, "*?[") && !slices.Contains(out, e) {
+				out = append(out, e)
+			}
+		}
+	}
+	return out
 }
 
 // updates are the update commands' choices, their flags.

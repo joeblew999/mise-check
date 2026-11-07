@@ -1,6 +1,6 @@
 # mise-check's own tasks, for working on mise-check itself: run every task here, at the top. A repo that uses mise-check
 # gets nothing from this file: it gets mise-check's binary and its tasks from mise-check init (templates/), and its Go
-# packages, misecheck and walk, from the module. Each task is named for what it acts on (noun:verb):
+# packages, misecheck and walk (and miseconfig, for a tool's init), from the module. Each task is named for what it acts on (noun:verb):
 #   root: this repo itself
 #     mise run root:ci                 what GitHub's CI runs, here the same: root:verify, then new-tool:e2e
 #     mise run root:verify             the checks at once, then the walks in turn

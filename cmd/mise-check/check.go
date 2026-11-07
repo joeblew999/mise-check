@@ -32,23 +32,16 @@ func (r repo) check(jsonOut bool) {
 	}
 }
 
-// rules are check's problems: init's files as this version writes them, .mise/config.toml pinning mise-check, the one
-// pin of it, the binary's pin and the packages' (go.mod) at one release, misecheck's rules on the repo's own mise files, and every skill of the repo against its tasks. None, and
-// the repo passes.
+// rules are check's problems: init's files as this version writes them, mise-check's parts of .mise/config.toml
+// (miseconfig: its pin, its own minimum_release_age_excludes entry, use_versions_host), the binary's pin and the
+// packages' (go.mod) at one release, misecheck's rules on the repo's own mise files, and every skill of the repo
+// against its tasks. None, and the repo passes.
 func (r repo) rules() []string {
 	problems := append(r.stale(), r.miseRules()...)
-	b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml"))
-	switch {
-	case err != nil:
-		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run mise run mise-check:init")
-	case !pinLine.Match(b):
-		problems = append(problems, ".mise/config.toml doesn't pin "+self+": add it, mise use --path .mise/config.toml "+self+"@latest")
-	}
-	if err == nil && !versionsHostLine.Match(b) {
-		problems = append(problems, ".mise/config.toml doesn't set use_versions_host, so latest waits for mise's versions host to list a release: run mise run mise-check:init")
-	}
-	if missing := excludesMissing(b); err == nil && len(missing) > 0 {
-		problems = append(problems, ".mise/config.toml doesn't let mise take the owner's tools at their newest release ("+strings.Join(missing, ", ")+" not in minimum_release_age_excludes): run mise run mise-check:init")
+	if b, err := os.ReadFile(filepath.Join(r.dir, ".mise", "config.toml")); err != nil {
+		problems = append(problems, ".mise/config.toml is missing: it pins mise-check; run "+initTask)
+	} else {
+		problems = append(problems, configTool().Problems(b)...)
 	}
 	if p := r.selves(r.goModules()).apart(); p != "" {
 		problems = append(problems, p)

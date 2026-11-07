@@ -18,15 +18,16 @@ import (
 // selfRepo is this tool's own module: what new-tool copies, at this binary's release.
 const selfRepo = "github.com/joeblew999/mise-check"
 
-// packagesModule is the module of the packages a new tool repo imports, misecheck and walk: mise-check's, in mise-check
-// and in every repo new-tool makes (this line is kept as it is when it's renamed).
+// packagesModule is the module of the packages a new tool repo imports, misecheck and walk for its tests and
+// miseconfig for its init: mise-check's, in mise-check and in every repo new-tool makes (this line is kept as it is
+// when it's renamed).
 const packagesModule = "github.com/joeblew999/mise-check"
 
-// dropped are what a new tool repo imports from mise-check instead of copying: the two packages and their tests.
-var dropped = []string{"misecheck.go", "misecheck_test.go", "walk/"}
+// dropped are what a new tool repo imports from mise-check instead of copying: the three packages and their tests.
+var dropped = []string{"misecheck.go", "misecheck_test.go", "walk/", "miseconfig/"}
 
 // kept are the imports of mise-check that stay mise-check's in a new tool repo: the packages it imports.
-var kept = []string{`misecheck "github.com/joeblew999/mise-check"`, `"github.com/joeblew999/mise-check/walk"`, `packagesModule = "github.com/joeblew999/mise-check"`}
+var kept = []string{`misecheck "github.com/joeblew999/mise-check"`, `"github.com/joeblew999/mise-check/walk"`, `"github.com/joeblew999/mise-check/miseconfig"`, `packagesModule = "github.com/joeblew999/mise-check"`}
 
 // newTool makes a new mise tool repo in the folder it runs in: mise-check at this binary's release (from Go's module
 // proxy, as go get has it), or the checkout from names, copied; mise-check renamed to the module's name in every
@@ -81,7 +82,7 @@ func (r repo) newTool(module, from string) {
 		must(os.MkdirAll(filepath.Dir(to), 0o755))
 		must(os.WriteFile(to, b, 0o644))
 	}
-	fmt.Printf("✓ %s: mise-check %s copied and renamed, its packages (misecheck, walk) imported instead\n", module, cmp.Or(at, "(a checkout, "+from+")"))
+	fmt.Printf("✓ %s: mise-check %s copied and renamed, its packages (misecheck, walk, miseconfig) imported instead\n", module, cmp.Or(at, "(a checkout, "+from+")"))
 	// Every mise file it wrote, trusted, as init trusts its own: the root's, and the template's.
 	for p := range files {
 		if p = rename.Replace(p); !droppedFile(p) && (path.Base(p) == "mise.toml" || path.Base(p) == "config.toml" && path.Base(path.Dir(p)) == ".mise") {

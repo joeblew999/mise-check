@@ -112,12 +112,14 @@ of it broken eleven ways, one at a time (its skill among them), is caught each t
 Shell steps only, no JavaScript actions. Each workflow checks out and installs mise, then only runs the root mise, as
 on any machine:
 
-- [ci.yml](.github/workflows/ci.yml), on every push and pull request, on Linux, macOS and Windows: `mise run
-  root:ci`, the same command as on your machine: `tool:test`, `root:check-mise`, `template:check-mise`,
+- [ci.yml](.github/workflows/ci.yml), once a change, on a push to main or a pull request, never twice for the same
+  commit (no branch's push beside its pull request, no tag), on Linux, macOS and Windows: `mise run root:ci`, the
+  same command as on your machine: `tool:test`, `root:check-mise`, `template:check-mise`,
   then the walks one after the other (`template:e2e`, `template:e2e-update`, `new-repo:e2e`, `new-tool:e2e`), as they share the machine's one aube store. `new-repo:e2e-update` is the same update walk on a new repo: run it after a change to how a new repo is made.
 - [new-repo.yml](.github/workflows/new-repo.yml), once a release run has passed (or by hand, for any release): a new
   repo made as the docs page says at that release, walked, and a new mise tool repo made by `new-tool` at that release, its
-  own `root:verify` run (`new-tool:e2e --version`), on Linux, macOS and Windows.
+  own `root:verify` run (`new-tool:e2e --version`), on Linux, macOS and Windows. After a release, Ubuntu's new repo
+  isn't walked again: the release job walked it there already; by hand, all three walk it.
 - [release.yml](.github/workflows/release.yml), on every change to what mise-check is (its binary, its packages, the
   template) merged to main: `tool:release`. It takes the commit's `v*` tag or tags the next patch version,
   [goreleaser](.goreleaser.yaml) puts the `mise-check` binary for macOS, Linux and Windows on the release, a new repo

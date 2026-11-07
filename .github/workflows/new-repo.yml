@@ -68,7 +68,9 @@ jobs:
 
       # The new repo's tasks run in each OS's own shell (cmd on Windows): they have no shell syntax. --skip-deps: the
       # release is what's tried, not a build of this checkout (tool:install).
+      # After a release, its own run walked this on Ubuntu already (tool:release); by hand, every OS walks it.
       - name: A new repo, made the README's way at the release, walked (mise run new-repo:e2e --version)
+        if: github.event_name == 'workflow_dispatch' || runner.os != 'Linux'
         run: mise run --skip-deps new-repo:e2e --version "$VERSION"
 
       # A new mise tool repo, made by mise-check new-tool at the release (copied from Go's module proxy), then its own

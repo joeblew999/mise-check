@@ -3,10 +3,11 @@
 # (the point of it is that tasks run the same everywhere). Shell steps only, as mise-cloudflare's: no JavaScript actions.
 name: ci
 
+# Once a change: a push to main, or a pull request (again for each push to its branch). Never a branch's push and its
+# pull request both, nor a tag, whose commit main's push ran already.
 on:
   push:
-    tags: ["**"]
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -18,7 +19,6 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
       matrix:

@@ -38,7 +38,7 @@ usage = 'flag "--no-major" help="no major moves: packages within their ranges, G
 run = 'mise-check update-mise{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 
 ["mise-check:update-packages"]
-description = "package.json and its lockfile, through aube"
+description = "every package.json of the repo and its lockfile, through aube"
 usage = 'flag "--no-major" help="no major moves: packages within their ranges, Go modules within their major"; flag "--json" help="one JSON document on stdout, every pin before and after, instead of text"'
 run = 'mise-check update-packages{% if usage.no_major %} --no-major{% endif %}{% if usage.json %} --json{% endif %}'
 

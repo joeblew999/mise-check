@@ -2,8 +2,10 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -135,5 +137,45 @@ func TestHeld(t *testing.T) {
 	must(os.WriteFile(filepath.Join(r.dir, "pyproject.toml"), []byte("[project]\nname = \"x\"\nrequires-python = \"==3.13.*\"\n"), 0o644))
 	if h := r.held(); len(h) != 1 || h[0].tool != "python" || h[0].prefix != "3.13" {
 		t.Errorf("held: %+v", h)
+	}
+}
+
+// An EmDash or Astro site keeps its packages in site/, a test harness in tests/: each folder with a package.json and a
+// lockfile beside it is a root the updates and verify act on, the top's first; a package.json with no lockfile below
+// the top (a workspace member, a fixture) and one in node_modules are not.
+func TestPackageRoots(t *testing.T) {
+	r := repo{dir: t.TempDir()}
+	write := func(rel, text string) {
+		t.Helper()
+		f := filepath.Join(r.dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := exec.Command("git", "-C", r.dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	write("site/package.json", "{}")
+	write("site/pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	write("tests/package.json", "{}")
+	write("tests/package-lock.json", "{}")
+	write("packages/member/package.json", "{}")
+	write("site/node_modules/x/package.json", "{}")
+	write("site/node_modules/x/pnpm-lock.yaml", "")
+	rel := func(roots []string) (out []string) {
+		for _, d := range roots {
+			out = append(out, filepath.ToSlash(r.rel(d)))
+		}
+		return out
+	}
+	if got, want := rel(r.packageRoots()), []string{"site", "tests"}; !slices.Equal(got, want) {
+		t.Fatalf("package roots: %v, want %v", got, want)
+	}
+	write("package.json", "{}")
+	if got := rel(r.packageRoots()); len(got) != 3 || got[0] != "." {
+		t.Fatalf("with a package.json at the top, it first: %v", got)
 	}
 }

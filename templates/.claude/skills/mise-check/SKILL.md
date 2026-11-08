@@ -24,7 +24,7 @@ Each runs the mise-check command of its name (`mise run mise-check:check` runs `
 | `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
 | `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order, then mise-check's two pins at one release |
 | `mise run mise-check:update-mise` | to upgrade the mise tools only | the tools in the repo's mise files |
-| `mise run mise-check:update-packages` | to upgrade the Node packages only | package.json and its lockfile, through aube |
+| `mise run mise-check:update-packages` | to upgrade the Node packages only | every package.json of the repo and its lockfile, through aube |
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
 | `mise run mise-check:show-users` | to see which of the owner's repos use this one, and which are behind | which of the owner's repos use it, at what version, the behind ones marked |
 | `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |

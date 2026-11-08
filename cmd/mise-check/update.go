@@ -47,7 +47,8 @@ func (r repo) update(o updates) { r.updatePins(o, "mise", "packages", "go") }
 // update-mise, update-packages and update-go one each.
 func (r repo) updatePins(o updates, kinds ...string) {
 	does := func(kind string) bool { return slices.Contains(kinds, kind) }
-	if does("packages") && r.exists("package.json") && r.mise("which", "aube") == "" {
+	pkgs := r.packageRoots()
+	if does("packages") && len(pkgs) > 0 && r.mise("which", "aube") == "" {
 		fail(errors.New("the packages update with aube, which writes whichever lockfile the repo has, and the repo's mise doesn't pin it: mise use aube"))
 	}
 	mods := r.goModules()
@@ -72,12 +73,14 @@ func (r repo) updatePins(o updates, kinds ...string) {
 			r.holdTo(h)
 		}
 	}
-	if does("packages") && r.exists("package.json") {
+	if does("packages") {
 		aube := []string{"exec", "--", "aube", "update"}
 		if !o.noMajor {
 			aube = append(aube, "--latest") // past each range: majors too
 		}
-		r.runOwnMise(r.dir, aube...)
+		for _, d := range pkgs { // each package root: its package.json and the lockfile beside it
+			r.runOwnMise(d, aube...)
+		}
 	}
 	if does("go") {
 		for _, m := range mods {
@@ -274,6 +277,40 @@ func (r repo) goModules() []string {
 	return mods
 }
 
+// packageRoots are the folders the repo installs Node packages in, its top's first: the top when it has a package.json,
+// and every other folder of the repo's own (as goModules finds them: git tracks or would track it, none in
+// node_modules, vendor or testdata) holding a package.json with a lockfile beside it (pnpm-lock.yaml,
+// package-lock.json, yarn.lock or bun.lock). A package.json with no lockfile below the top is a workspace member, or
+// a fixture: it's installed from the root above it, or not at all. An EmDash or Astro site in site/, a test harness in
+// tests/: each is its own root, updated and verified on its own.
+func (r repo) packageRoots() []string {
+	locks := []string{"pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lock"}
+	var roots []string
+	if r.exists("package.json") {
+		roots = append(roots, r.dir)
+	}
+	ls := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "**/package.json")
+	ls.Dir = r.dir
+	out, err := ls.Output()
+	if err != nil {
+		return roots
+	}
+	for _, f := range strings.Fields(string(out)) {
+		dir := filepath.Dir(filepath.FromSlash(f))
+		if dir == "." || strings.Contains("/"+filepath.ToSlash(dir)+"/", "/node_modules/") || strings.Contains("/"+f, "/vendor/") || strings.Contains("/"+f, "/testdata/") {
+			continue
+		}
+		for _, l := range locks {
+			if _, err := os.Stat(filepath.Join(r.dir, dir, l)); err == nil {
+				roots = append(roots, filepath.Join(r.dir, dir))
+				break
+			}
+		}
+	}
+	slices.SortFunc(roots[min(1, len(roots)):], func(a, b string) int { return cmp.Compare(a, b) })
+	return roots
+}
+
 // pins is every version the repo pins of its own, by file and name: its mise tools by the file mise read each from
 // ("mise.toml node"), its packages ("package.json wrangler"), and each go.mod's Go ("go.mod toolchain", the toolchain
 // line, or the go line with none) and modules ("go.mod golang.org/x/term"; a go.mod in a folder by its path,
@@ -293,11 +330,14 @@ func (r repo) pins(mods []string) map[string]string {
 			}
 		}
 	}
-	var pkg struct{ Dependencies, DevDependencies map[string]string }
-	if b, err := os.ReadFile(filepath.Join(r.dir, "package.json")); err == nil && json.Unmarshal(b, &pkg) == nil {
-		for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies} {
-			for name, v := range deps {
-				p["package.json "+name] = v
+	for _, d := range r.packageRoots() {
+		var pkg struct{ Dependencies, DevDependencies map[string]string }
+		file := filepath.ToSlash(filepath.Join(r.rel(d), "package.json"))
+		if b, err := os.ReadFile(filepath.Join(d, "package.json")); err == nil && json.Unmarshal(b, &pkg) == nil {
+			for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies} {
+				for name, v := range deps {
+					p[file+" "+name] = v
+				}
 			}
 		}
 	}

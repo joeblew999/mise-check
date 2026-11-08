@@ -32,7 +32,7 @@ var commands = []command{
 	{"mise-check:verify", "what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check", "before every push"},
 	{"mise-check:update", "every pin at its newest: the three below, in order, then mise-check's two pins at one release", "when the person asks to upgrade everything"},
 	{"mise-check:update-mise", "the tools in the repo's mise files", "to upgrade the mise tools only"},
-	{"mise-check:update-packages", "package.json and its lockfile, through aube", "to upgrade the Node packages only"},
+	{"mise-check:update-packages", "every package.json of the repo and its lockfile, through aube", "to upgrade the Node packages only"},
 	{"mise-check:update-go", "every go.mod's toolchain line and modules, majors too, their import paths rewritten", "to upgrade Go only"},
 	{"mise-check:show-users", "which of the owner's repos use it, at what version, the behind ones marked", "to see which of the owner's repos use this one, and which are behind"},
 	{"mise-check:template", "the template's little app, its go.mod and packages; it never writes over a file", "only in a repo with no Go program yet"},

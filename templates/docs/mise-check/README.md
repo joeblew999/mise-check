@@ -118,7 +118,7 @@ The shared machinery is mise-check's packages, imported at the release `.mise/co
 | `mise run mise-check:verify` | before every push | what GitHub runs: each pin consistent with what pins it, the repo's setup and test, then check |
 | `mise run mise-check:update` | when the person asks to upgrade everything | every pin at its newest: the three below, in order, then mise-check's two pins at one release |
 | `mise run mise-check:update-mise` | to upgrade the mise tools only | the tools in the repo's mise files |
-| `mise run mise-check:update-packages` | to upgrade the Node packages only | package.json and its lockfile, through aube |
+| `mise run mise-check:update-packages` | to upgrade the Node packages only | every package.json of the repo and its lockfile, through aube |
 | `mise run mise-check:update-go` | to upgrade Go only | every go.mod's toolchain line and modules, majors too, their import paths rewritten |
 | `mise run mise-check:show-users` | to see which of the owner's repos use this one, and which are behind | which of the owner's repos use it, at what version, the behind ones marked |
 | `mise run mise-check:template` | only in a repo with no Go program yet | the template's little app, its go.mod and packages; it never writes over a file |
@@ -170,7 +170,9 @@ parent folder's config, so nothing outside the repo moves:
    python within `pyproject.toml`'s `requires-python`, node within `.nvmrc` or `package.json`'s `engines.node`,
    when the range is one minor or one major (`==3.13.*`, `^24`). Its pin moves to the newest release there
    (`mise latest python@3.13`), back down if it had gone past, and the update says so.
-2. its packages, when it has a `package.json`: `aube update --latest`, which writes whichever lockfile the repo has
+2. its packages, in every package root: the top when it has a `package.json`, and each folder of the repo's own with a
+   `package.json` and a lockfile beside it (an EmDash or Astro site in `site/`, a test harness in `tests/`): `aube
+   update --latest` there, which writes whichever lockfile that folder has
 3. in every `go.mod` of the repo (none in `vendor/`, `node_modules/`, `testdata/` or a dot folder):
    - its Go: `go get toolchain@latest`, the toolchain line. The `go` line, the least Go the module needs, stays.
    - its modules: `go mod tidy`, then [go-mod-upgrade](https://github.com/oligot/go-mod-upgrade) `--force`, majors
@@ -189,7 +191,7 @@ is what fixes it:
 | Kind | Moved by | `verify` checks |
 |---|---|---|
 | mise tools | `update-mise` | nothing more: the mise files pin exact versions, their own lock |
-| Node packages | `update-packages` | `aube install --frozen-lockfile`: `package.json` and the lockfile agree |
+| Node packages | `update-packages` | `aube install --frozen-lockfile` in every package root: each `package.json` and its lockfile agree |
 | Go | `update-go` | `go mod tidy -diff` in every go.mod: go.mod and go.sum are what the imports need |
 
 
